@@ -10,18 +10,22 @@ import lombok.ToString;
 @Getter
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class MyExhView {
+public class MyVisitExhsView {
 	private final Long exhId;
+	private final Long visitExhId;
 	private final String exhName;
+	private final String gallery;
 	private final String poster;
-	private final Double rate;
+	private final String visitDate;
 
 	@Builder
-	public MyExhView(MyExhReadUseCase.FindMyExhsResult result) {
+	public MyVisitExhsView(MyExhReadUseCase.FindMyVisitExhsResult result) {
 		this.exhId = result.getExhId();
+		this.visitExhId = result.getVisitExhId();
+		this.gallery = result.getGallery();
 		this.exhName = result.getExhName();
 		this.poster = result.getPoster();
-		this.rate = result.getRate();
+		this.visitDate = result.getVisitDate();
 	}
 
 }
