@@ -12,26 +12,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import klieme.artdiary.common.api.ArtDiaryException;
 import klieme.artdiary.common.api.MessageType;
-import klieme.artdiary.record_data_access.entity.DiaryEntity;
-import klieme.artdiary.record_data_access.repository.DiaryRepository;
 import klieme.artdiary.record_data_access.repository.VisitExhRepository;
 import klieme.artdiary.solo.data_access.entity.QuestionEntity;
 import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
 import klieme.artdiary.solo.data_access.repository.QuestionRepository;
 import klieme.artdiary.solo.data_access.repository.SoloDiaryRepository;
-import klieme.artdiary.user.data_access.entity.UserEntity;
 
 @Service
 public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryReadUseCase {
-	private final DiaryRepository diaryRepository;
 	private final SoloDiaryRepository soloDiaryRepository;
 	private final VisitExhRepository visitExhRepository;
 	private final QuestionRepository questionRepository;
 
 	@Autowired
-	public SoloDiaryService(DiaryRepository diaryRepository, SoloDiaryRepository soloDiaryRepository,
-		VisitExhRepository visitExhRepository, QuestionRepository questionRepository) {
-		this.diaryRepository = diaryRepository;
+	public SoloDiaryService(SoloDiaryRepository soloDiaryRepository, VisitExhRepository visitExhRepository,
+		QuestionRepository questionRepository) {
 		this.soloDiaryRepository = soloDiaryRepository;
 		this.visitExhRepository = visitExhRepository;
 		this.questionRepository = questionRepository;
@@ -112,20 +107,19 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 
 	@Transactional
 	@Override
-	public void deleteMyDiary(Long exhId, Long diaryId) {
-		DiaryEntity diary = diaryRepository.getDiaryByDiaryIdAndWriterIdAndExhId(diaryId, getUserId(), exhId);
+	public void deleteSoloDiary(Long visitExhId, Long soloDiaryId) {
+		Long userId = getUserId();
+		// visitExh의 userId 확인
+		visitExhRepository.findByVisitExhIdAndUserId(visitExhId, userId)
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// soloDiary 조회
+		SoloDiaryEntity soloDiary = soloDiaryRepository.findBySoloDiaryIdAndVisitExhId(soloDiaryId, visitExhId)
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
-		if (diary == null) {
-			throw new ArtDiaryException(MessageType.NOT_FOUND);
-		}
-		diaryRepository.delete(diary);
+		soloDiaryRepository.delete(soloDiary);
 	}
 
 	private Long getUserId() {
 		return getCurrentUserEntity().getUserId();
-	}
-
-	private UserEntity getUser() {
-		return getCurrentUserEntity();
 	}
 }

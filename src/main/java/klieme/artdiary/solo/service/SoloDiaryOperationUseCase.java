@@ -12,7 +12,7 @@ public interface SoloDiaryOperationUseCase {
 
 	SoloDiaryReadUseCase.FindSoloDiaryResult updateSoloDiary(SoloDiaryCreateUpdateCommand command);
 
-	void deleteMyDiary(Long exhId, Long diaryId);
+	void deleteSoloDiary(Long visitExhId, Long soloDiaryId);
 
 	@EqualsAndHashCode
 	@Builder
