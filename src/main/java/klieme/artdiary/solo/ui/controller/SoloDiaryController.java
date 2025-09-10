@@ -1,0 +1,115 @@
+package klieme.artdiary.solo.ui.controller;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+import klieme.artdiary.solo.service.SoloDiaryOperationUseCase;
+import klieme.artdiary.solo.service.SoloDiaryReadUseCase;
+import klieme.artdiary.solo.ui.request_body.SoloDiaryRequest;
+import klieme.artdiary.solo.ui.view.SoloDiaryView;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@RestController
+@RequestMapping(value = "/exh-visits/{visitExhId}")
+public class SoloDiaryController {
+	private final SoloDiaryOperationUseCase soloDiaryOperationUseCase;
+	private final SoloDiaryReadUseCase soloDiaryReadUseCase;
+
+	@Autowired
+	public SoloDiaryController(SoloDiaryOperationUseCase soloDiaryOperationUseCase,
+		SoloDiaryReadUseCase soloDiaryReadUseCase) {
+		this.soloDiaryOperationUseCase = soloDiaryOperationUseCase;
+		this.soloDiaryReadUseCase = soloDiaryReadUseCase;
+	}
+
+	/**
+	 * 기록 목록 조회
+	 * "/exh-visits/${visit_exh_id}/diaries"
+	 */
+	@GetMapping("/diaries")
+	public ResponseEntity<List<SoloDiaryView>> getDiaries(@PathVariable(name = "visitExhId") Long visitExhId) {
+
+		log.info("[기록&평가 목록 조회]");
+
+		// 비즈니스 로직 호출
+		List<SoloDiaryReadUseCase.FindSoloDiaryResult> myDiaryResults = soloDiaryReadUseCase.getMyDiaries(visitExhId);
+		// 비즈니스 로직 결과값을 view 형식에 맞춰 list로 반환
+		List<SoloDiaryView> results = new ArrayList<>();
+
+		for (SoloDiaryReadUseCase.FindSoloDiaryResult myDiaryResult : myDiaryResults) {
+			results.add(SoloDiaryView.builder().result(myDiaryResult).build());
+		}
+		return ResponseEntity.ok(results);
+	}
+
+	/**
+	 *기록 추가
+	 * "/exh-visits/${visit_exh_id}/diaries"
+	 */
+	@PostMapping("/diaries")
+	public ResponseEntity<SoloDiaryView> createDiary(
+		@PathVariable(name = "visitExhId") Long visitExhId,
+		@Valid @RequestBody SoloDiaryRequest request
+	) {
+		log.info("[기록&평가 추가]");
+		// request body 데이터 받아오기
+		var command = SoloDiaryOperationUseCase.SoloDiaryCreateUpdateCommand.builder()
+			.visitExhId(visitExhId)
+			.questionId(request.getQuestionId())
+			.answer(request.getAnswer())
+			.writeDate(request.getWriteDate())
+			.isPublic(request.getIsPublic())
+			.build();
+		// 비즈니스 로직 호출
+		SoloDiaryReadUseCase.FindSoloDiaryResult soloDiaryResult = soloDiaryOperationUseCase.createSoloDiary(command);
+
+		return ResponseEntity.created(null).body(SoloDiaryView.builder().result(soloDiaryResult).build());
+	}
+
+	/**
+	 * 기록 수정
+	 * "/exh-visits/{visit_exh_id}/diaries/{solo_diary_id}"
+	 */
+	@PatchMapping("/diaries/{soloDiaryId}")
+	public ResponseEntity<SoloDiaryView> updateMyDiary(
+		@PathVariable(name = "visitExhId") Long visitExhId,
+		@PathVariable(name = "soloDiaryId") Long soloDiaryId,
+		@Valid @RequestBody SoloDiaryRequest request
+	) {
+		log.info("[기록 수정]");
+		// request body 데이터 받아오기
+		var command = SoloDiaryOperationUseCase.SoloDiaryCreateUpdateCommand.builder()
+			.visitExhId(visitExhId)
+			.soloDiaryId(soloDiaryId)
+			.questionId(request.getQuestionId())
+			.answer(request.getAnswer())
+			.writeDate(request.getWriteDate())
+			.isPublic(request.getIsPublic())
+			.build();
+		// 비즈니스 로직 호출
+		SoloDiaryReadUseCase.FindSoloDiaryResult soloDiaryResult = soloDiaryOperationUseCase.updateSoloDiary(command);
+
+		return ResponseEntity.ok(SoloDiaryView.builder().result(soloDiaryResult).build());
+	}
+
+	// @DeleteMapping("/{diaryId}")
+	// @ResponseStatus(HttpStatus.NO_CONTENT)
+	// public void deleteDiary(@PathVariable(name = "exhId") Long exhId, @PathVariable(name = "diaryId") Long diaryId) {
+	// 	log.info("[기록 삭제]");
+	//
+	// 	mydiaryOperationUseCase.deleteMyDiary(exhId, diaryId);
+	//
+	// }
+}

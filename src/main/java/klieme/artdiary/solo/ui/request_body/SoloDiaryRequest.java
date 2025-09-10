@@ -4,18 +4,21 @@ import java.time.LocalDate;
 
 import org.springframework.format.annotation.DateTimeFormat;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class AddMyExhVisitDateRequest { //혜원 추가
-
+public class SoloDiaryRequest {
 	@NotNull
-	public Long exhId;
-
+	private Long questionId;
+	@NotBlank
+	private String answer;
+	@NotNull
 	@DateTimeFormat(pattern = "yyyy-MM-dd")
-	public LocalDate visitDate;
-
+	private LocalDate writeDate;
+	@NotNull
+	private Boolean isPublic;
 }
