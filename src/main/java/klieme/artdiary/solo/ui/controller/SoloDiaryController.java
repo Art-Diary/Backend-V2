@@ -1,8 +1,5 @@
 package klieme.artdiary.solo.ui.controller;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,19 +39,14 @@ public class SoloDiaryController {
 	 * "/exh-visits/${visit_exh_id}/diaries"
 	 */
 	@GetMapping("/diaries")
-	public ResponseEntity<List<SoloDiaryView>> getDiaries(@PathVariable(name = "visitExhId") Long visitExhId) {
+	public ResponseEntity<SoloDiaryView> getDiaries(@PathVariable(name = "visitExhId") Long visitExhId) {
 
 		log.info("[기록&평가 목록 조회]");
 
 		// 비즈니스 로직 호출
-		List<SoloDiaryReadUseCase.FindSoloDiaryResult> myDiaryResults = soloDiaryReadUseCase.getMyDiaries(visitExhId);
-		// 비즈니스 로직 결과값을 view 형식에 맞춰 list로 반환
-		List<SoloDiaryView> results = new ArrayList<>();
+		SoloDiaryReadUseCase.FindSoloDiaryResult soloDiaryResults = soloDiaryReadUseCase.getSoloDiaryList(visitExhId);
 
-		for (SoloDiaryReadUseCase.FindSoloDiaryResult myDiaryResult : myDiaryResults) {
-			results.add(SoloDiaryView.builder().result(myDiaryResult).build());
-		}
-		return ResponseEntity.ok(results);
+		return ResponseEntity.ok(SoloDiaryView.builder().result(soloDiaryResults).build());
 	}
 
 	/**
@@ -62,7 +54,7 @@ public class SoloDiaryController {
 	 * "/exh-visits/${visit_exh_id}/diaries"
 	 */
 	@PostMapping("/diaries")
-	public ResponseEntity<SoloDiaryView> createDiary(
+	public ResponseEntity<Void> createDiary(
 		@PathVariable(name = "visitExhId") Long visitExhId,
 		@Valid @RequestBody SoloDiaryRequest request
 	) {
@@ -76,9 +68,9 @@ public class SoloDiaryController {
 			.isPublic(request.getIsPublic())
 			.build();
 		// 비즈니스 로직 호출
-		SoloDiaryReadUseCase.FindSoloDiaryResult soloDiaryResult = soloDiaryOperationUseCase.createSoloDiary(command);
+		soloDiaryOperationUseCase.createSoloDiary(command);
 
-		return ResponseEntity.created(null).body(SoloDiaryView.builder().result(soloDiaryResult).build());
+		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
 
 	/**
@@ -86,7 +78,7 @@ public class SoloDiaryController {
 	 * "/exh-visits/{visit_exh_id}/diaries/{solo_diary_id}"
 	 */
 	@PatchMapping("/diaries/{soloDiaryId}")
-	public ResponseEntity<SoloDiaryView> updateMyDiary(
+	public ResponseEntity<Void> updateMyDiary(
 		@PathVariable(name = "visitExhId") Long visitExhId,
 		@PathVariable(name = "soloDiaryId") Long soloDiaryId,
 		@Valid @RequestBody SoloDiaryRequest request
@@ -102,9 +94,9 @@ public class SoloDiaryController {
 			.isPublic(request.getIsPublic())
 			.build();
 		// 비즈니스 로직 호출
-		SoloDiaryReadUseCase.FindSoloDiaryResult soloDiaryResult = soloDiaryOperationUseCase.updateSoloDiary(command);
+		soloDiaryOperationUseCase.updateSoloDiary(command);
 
-		return ResponseEntity.ok(SoloDiaryView.builder().result(soloDiaryResult).build());
+		return ResponseEntity.status(HttpStatus.OK).build();
 	}
 
 	@DeleteMapping("/diaries/{soloDiaryId}")

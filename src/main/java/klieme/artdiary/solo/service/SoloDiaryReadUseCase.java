@@ -1,19 +1,17 @@
 package klieme.artdiary.solo.service;
 
-import static klieme.artdiary.common.FormatDate.*;
-
 import java.time.LocalDate;
 import java.util.List;
 
-import klieme.artdiary.solo.data_access.entity.QuestionEntity;
-import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
+import klieme.artdiary.solo.model.EvalInfo;
+import klieme.artdiary.solo.model.SoloDiaryInfo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 public interface SoloDiaryReadUseCase {
-	List<FindSoloDiaryResult> getMyDiaries(Long visitExhId);
+	FindSoloDiaryResult getSoloDiaryList(Long visitExhId);
 
 	@EqualsAndHashCode
 	@Getter
@@ -30,21 +28,14 @@ public interface SoloDiaryReadUseCase {
 	@ToString
 	@Builder
 	class FindSoloDiaryResult {
-		private final Long soloDiaryId;
-		private final Long questionId;
-		private final String question;
-		private final String answer;
-		private final String writeDate;
-		private final Boolean isPublic;
+		private final List<EvalInfo> evalInfoList;
+		private final List<SoloDiaryInfo> soloDiaryInfoList;
 
-		public static FindSoloDiaryResult findBySoloDiary(SoloDiaryEntity soloDiary, QuestionEntity question) {
+		public static FindSoloDiaryResult findBySoloDiary(List<EvalInfo> evalInfoList,
+			List<SoloDiaryInfo> soloDiaryInfoList) {
 			return FindSoloDiaryResult.builder()
-				.soloDiaryId(soloDiary.getSoloDiaryId())
-				.questionId(question.getQuestionId())
-				.question(question.getQuestionText())
-				.answer(soloDiary.getAnswer())
-				.writeDate(changeDateFormat(soloDiary.getWriteDate()))
-				.isPublic(soloDiary.getIsPublic())
+				.evalInfoList(evalInfoList)
+				.soloDiaryInfoList(soloDiaryInfoList)
 				.build();
 		}
 	}

@@ -13,50 +13,63 @@ import org.springframework.transaction.annotation.Transactional;
 import klieme.artdiary.common.api.ArtDiaryException;
 import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.record_data_access.repository.VisitExhRepository;
+import klieme.artdiary.solo.data_access.entity.EvalFactorEntity;
+import klieme.artdiary.solo.data_access.entity.EvalOptionEntity;
 import klieme.artdiary.solo.data_access.entity.QuestionEntity;
 import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
-import klieme.artdiary.solo.data_access.repository.QuestionRepository;
 import klieme.artdiary.solo.data_access.repository.SoloDiaryRepository;
+import klieme.artdiary.solo.data_access.repository.VisitEvalChoiceRepository;
+import klieme.artdiary.solo.model.EvalInfo;
+import klieme.artdiary.solo.model.SoloDiaryInfo;
 
 @Service
 public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryReadUseCase {
 	private final SoloDiaryRepository soloDiaryRepository;
 	private final VisitExhRepository visitExhRepository;
-	private final QuestionRepository questionRepository;
+	private final VisitEvalChoiceRepository visitExhChoiceRepository;
 
 	@Autowired
 	public SoloDiaryService(SoloDiaryRepository soloDiaryRepository, VisitExhRepository visitExhRepository,
-		QuestionRepository questionRepository) {
+		VisitEvalChoiceRepository visitExhChoiceRepository) {
 		this.soloDiaryRepository = soloDiaryRepository;
 		this.visitExhRepository = visitExhRepository;
-		this.questionRepository = questionRepository;
+		this.visitExhChoiceRepository = visitExhChoiceRepository;
 	}
 
 	@Override
-	public List<FindSoloDiaryResult> getMyDiaries(Long visitExhId) {
+	public FindSoloDiaryResult getSoloDiaryList(Long visitExhId) {
 		Long userId = getUserId();
 		// visitExh의 userId 확인
 		visitExhRepository.findByVisitExhIdAndUserId(visitExhId, userId)
 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
-		// [TODO] 평가
+		List<EvalInfo> evalInfoList = new ArrayList<>();
+		List<SoloDiaryInfo> soloDiaryInfoList = new ArrayList<>();
+		// 평가 정보 가져오기
+		List<Map<String, Object>> evalChoices = visitExhChoiceRepository.getChoices(visitExhId);
+
+		for (Map<String, Object> info : evalChoices) {
+			EvalFactorEntity evalFactor = (EvalFactorEntity)info.get("evalFactor");
+			EvalOptionEntity evalOption = (EvalOptionEntity)info.get("evalOption");
+
+			evalInfoList.add(EvalInfo.of(evalFactor, evalOption));
+		}
 
 		// soloDiary에서 visitExhId에 해당하는 것 모두 가져오기 - question 필요
 		List<Map<String, Object>> diaryListWithQuestion = soloDiaryRepository.getSoloDiaryListWithQuestion(visitExhId);
-		List<FindSoloDiaryResult> result = new ArrayList<>();
 
 		for (Map<String, Object> info : diaryListWithQuestion) {
 			SoloDiaryEntity soloDiary = (SoloDiaryEntity)info.get("soloDiary");
 			QuestionEntity question = (QuestionEntity)info.get("question");
 
-			result.add(FindSoloDiaryResult.findBySoloDiary(soloDiary, question));
+			soloDiaryInfoList.add(SoloDiaryInfo.of(soloDiary, question));
 		}
-		return result;
+		return FindSoloDiaryResult.findBySoloDiary(evalInfoList, soloDiaryInfoList);
 	}
 
 	@Transactional
 	@Override
-	public FindSoloDiaryResult createSoloDiary(SoloDiaryCreateUpdateCommand command) {
+	public void createSoloDiary(SoloDiaryCreateUpdateCommand command) {
 		Long userId = getUserId();
 		// visitExh의 userId 확인
 		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)
@@ -64,9 +77,6 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 
 		// [TODO] 평가
 
-		// question 조회
-		QuestionEntity question = questionRepository.findByQuestionId(command.getQuestionId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 		// soloDiary 추가
 		SoloDiaryEntity newSoloDiary = SoloDiaryEntity.builder()
 			.visitExhId(command.getVisitExhId())
@@ -77,12 +87,11 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 			.isPublic(command.getIsPublic())
 			.build();
 		soloDiaryRepository.save(newSoloDiary);
-		return FindSoloDiaryResult.findBySoloDiary(newSoloDiary, question);
 	}
 
 	@Transactional
 	@Override
-	public FindSoloDiaryResult updateSoloDiary(SoloDiaryCreateUpdateCommand command) {
+	public void updateSoloDiary(SoloDiaryCreateUpdateCommand command) {
 		Long userId = getUserId();
 		// visitExh의 userId 확인
 		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)
@@ -99,10 +108,6 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 			.isPublic(command.getIsPublic())
 			.build());
 		soloDiaryRepository.save(soloDiary);
-		// question 조회
-		QuestionEntity question = questionRepository.findByQuestionId(command.getQuestionId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		return FindSoloDiaryResult.findBySoloDiary(soloDiary, question);
 	}
 
 	@Transactional

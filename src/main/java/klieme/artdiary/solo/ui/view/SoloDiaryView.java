@@ -1,7 +1,11 @@
 package klieme.artdiary.solo.ui.view;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import klieme.artdiary.solo.model.EvalInfo;
+import klieme.artdiary.solo.model.SoloDiaryInfo;
 import klieme.artdiary.solo.service.SoloDiaryReadUseCase;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,20 +15,12 @@ import lombok.ToString;
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SoloDiaryView {
-	private final Long soloDiaryId;
-	private final Long questionId;
-	private final String question;
-	private final String answer;
-	private final String writeDate;
-	private final Boolean isPublic;
+	private final List<EvalInfo> evalInfoList;
+	private final List<SoloDiaryInfo> soloDiaryInfoList;
 
 	@Builder
 	public SoloDiaryView(SoloDiaryReadUseCase.FindSoloDiaryResult result) {
-		this.soloDiaryId = result.getSoloDiaryId();
-		this.questionId = result.getQuestionId();
-		this.question = result.getQuestion();
-		this.answer = result.getAnswer();
-		this.writeDate = result.getWriteDate();
-		this.isPublic = result.getIsPublic();
+		this.evalInfoList = result.getEvalInfoList();
+		this.soloDiaryInfoList = result.getSoloDiaryInfoList();
 	}
 }
