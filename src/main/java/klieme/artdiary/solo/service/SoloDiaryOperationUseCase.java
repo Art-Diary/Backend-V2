@@ -8,9 +8,9 @@ import lombok.Getter;
 import lombok.ToString;
 
 public interface SoloDiaryOperationUseCase {
-	SoloDiaryReadUseCase.FindSoloDiaryResult createSoloDiary(SoloDiaryCreateUpdateCommand command);
+	void createSoloDiary(SoloDiaryCreateUpdateCommand command);
 
-	SoloDiaryReadUseCase.FindSoloDiaryResult updateSoloDiary(SoloDiaryCreateUpdateCommand command);
+	void updateSoloDiary(SoloDiaryCreateUpdateCommand command);
 
 	void deleteSoloDiary(Long visitExhId, Long soloDiaryId);
 
