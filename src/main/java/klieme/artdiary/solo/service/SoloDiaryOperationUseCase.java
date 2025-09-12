@@ -1,18 +1,19 @@
 package klieme.artdiary.solo.service;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import klieme.artdiary.solo.dto.EvalChoiceInfo;
+import klieme.artdiary.solo.dto.SoloDiaryForCreateInfo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 public interface SoloDiaryOperationUseCase {
-	void createSoloDiary(SoloDiaryCreateUpdateCommand command);
+	void createSoloDiary(SoloDiaryCreateCommand command);
 
-	void updateSoloDiary(SoloDiaryCreateUpdateCommand command);
+	void updateSoloDiary(SoloDiaryUpdateCommand command);
 
 	void deleteSoloDiary(Long visitExhId, Long soloDiaryId);
 
@@ -22,12 +23,23 @@ public interface SoloDiaryOperationUseCase {
 	@Builder
 	@Getter
 	@ToString
-	class SoloDiaryCreateUpdateCommand {
+	class SoloDiaryCreateCommand {
+		private final Long visitExhId;
+		private final Boolean initEval;
+		private final List<SoloDiaryForCreateInfo> soloDiaryInfoList;
+		private final List<EvalChoiceInfo> evalChoiceInfoList;
+	}
+
+	@EqualsAndHashCode
+	@Builder
+	@Getter
+	@ToString
+	class SoloDiaryUpdateCommand {
 		private final Long visitExhId;
 		private final Long soloDiaryId;
 		private final Long questionId;
 		private final String answer;
-		private final LocalDate writeDate;
+		private final LocalDateTime writeDate;
 		private final Boolean isPublic;
 	}
 

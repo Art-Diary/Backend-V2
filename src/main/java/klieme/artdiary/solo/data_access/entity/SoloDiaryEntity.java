@@ -1,6 +1,6 @@
 package klieme.artdiary.solo.data_access.entity;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
@@ -34,13 +34,13 @@ public class SoloDiaryEntity {
 	@Column(nullable = false)
 	private String answer;
 	@Column(name = "write_date", nullable = false)
-	private LocalDate writeDate;
+	private LocalDateTime writeDate;
 	@Column(name = "is_public", nullable = false)
 	private Boolean isPublic;
 
 	@Builder
 	public SoloDiaryEntity(Long soloDiaryId, Long visitExhId, Long questionId, String answer, Boolean isPublic,
-		LocalDate writeDate) {
+		LocalDateTime writeDate) {
 		this.soloDiaryId = soloDiaryId;
 		this.visitExhId = visitExhId;
 		this.questionId = questionId;

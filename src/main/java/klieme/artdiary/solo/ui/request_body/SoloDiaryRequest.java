@@ -1,8 +1,8 @@
 package klieme.artdiary.solo.ui.request_body;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-import org.springframework.format.annotation.DateTimeFormat;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,8 +17,8 @@ public class SoloDiaryRequest {
 	@NotBlank
 	private String answer;
 	@NotNull
-	@DateTimeFormat(pattern = "yyyy-MM-dd")
-	private LocalDate writeDate;
+	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime writeDate;
 	@NotNull
 	private Boolean isPublic;
 }

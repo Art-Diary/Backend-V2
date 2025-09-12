@@ -25,7 +25,7 @@ public class SoloDiaryInfo {
 			.questionId(question.getQuestionId())
 			.question(question.getQuestionText())
 			.answer(soloDiary.getAnswer())
-			.writeDate(changeDateFormat(soloDiary.getWriteDate()))
+			.writeDate(changeDateTimeFormat(soloDiary.getWriteDate()))
 			.isPublic(soloDiary.getIsPublic())
 			.build();
 	}
