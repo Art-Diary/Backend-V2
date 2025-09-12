@@ -1,5 +1,7 @@
 package klieme.artdiary.solo.ui.controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +16,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import klieme.artdiary.solo.dto.EvalChoiceInfo;
 import klieme.artdiary.solo.service.SoloDiaryOperationUseCase;
 import klieme.artdiary.solo.service.SoloDiaryReadUseCase;
+import klieme.artdiary.solo.ui.request_body.EvalChoiceRequest;
 import klieme.artdiary.solo.ui.request_body.SoloDiaryRequest;
 import klieme.artdiary.solo.ui.view.SoloDiaryView;
 import lombok.extern.slf4j.Slf4j;
@@ -106,5 +111,30 @@ public class SoloDiaryController {
 		log.info("[기록 삭제]");
 
 		soloDiaryOperationUseCase.deleteSoloDiary(visitExhId, soloDiaryId);
+	}
+
+	/**
+	 * 평가 수정
+	 * "/exh-visits/{visit_exh_id}/evaluations"
+	 */
+	@PatchMapping("/evaluations")
+	public ResponseEntity<Void> updateEvaluations(
+		@PathVariable(name = "visitExhId") Long visitExhId,
+		@Valid @RequestBody @NotEmpty List<EvalChoiceRequest> request
+	) {
+		log.info("[평가 수정]");
+		for (EvalChoiceRequest request1 : request) {
+			System.out.println(request1.getFactorId() + ", " + request1.getOptionId());
+		}
+		// request body 데이터 받아오기
+		var command = SoloDiaryOperationUseCase.EvalChoiceUpdateCommand.builder()
+			.visitExhId(visitExhId)
+			.evalChoiceInfoList(request.stream()
+				.map((req) -> EvalChoiceInfo.builder().factorId(req.getFactorId()).optionId(req.getOptionId()).build())
+				.toList())
+			.build();
+		// 비즈니스 로직 호출
+		soloDiaryOperationUseCase.updateEvaluationList(command);
+		return ResponseEntity.status(HttpStatus.OK).build();
 	}
 }

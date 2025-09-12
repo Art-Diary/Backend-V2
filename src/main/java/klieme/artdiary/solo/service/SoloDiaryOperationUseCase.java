@@ -1,7 +1,9 @@
 package klieme.artdiary.solo.service;
 
 import java.time.LocalDate;
+import java.util.List;
 
+import klieme.artdiary.solo.dto.EvalChoiceInfo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -14,6 +16,8 @@ public interface SoloDiaryOperationUseCase {
 
 	void deleteSoloDiary(Long visitExhId, Long soloDiaryId);
 
+	void updateEvaluationList(EvalChoiceUpdateCommand command);
+
 	@EqualsAndHashCode
 	@Builder
 	@Getter
@@ -25,5 +29,14 @@ public interface SoloDiaryOperationUseCase {
 		private final String answer;
 		private final LocalDate writeDate;
 		private final Boolean isPublic;
+	}
+
+	@EqualsAndHashCode
+	@Builder
+	@Getter
+	@ToString
+	class EvalChoiceUpdateCommand {
+		private final Long visitExhId;
+		List<EvalChoiceInfo> evalChoiceInfoList;
 	}
 }

@@ -3,8 +3,12 @@ package klieme.artdiary.solo.service;
 import static klieme.artdiary.common.SecurityUtil.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,8 +21,10 @@ import klieme.artdiary.solo.data_access.entity.EvalFactorEntity;
 import klieme.artdiary.solo.data_access.entity.EvalOptionEntity;
 import klieme.artdiary.solo.data_access.entity.QuestionEntity;
 import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
+import klieme.artdiary.solo.data_access.entity.VisitEvalChoiceEntity;
 import klieme.artdiary.solo.data_access.repository.SoloDiaryRepository;
 import klieme.artdiary.solo.data_access.repository.VisitEvalChoiceRepository;
+import klieme.artdiary.solo.dto.EvalChoiceInfo;
 import klieme.artdiary.solo.model.EvalInfo;
 import klieme.artdiary.solo.model.SoloDiaryInfo;
 
@@ -26,14 +32,14 @@ import klieme.artdiary.solo.model.SoloDiaryInfo;
 public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryReadUseCase {
 	private final SoloDiaryRepository soloDiaryRepository;
 	private final VisitExhRepository visitExhRepository;
-	private final VisitEvalChoiceRepository visitExhChoiceRepository;
+	private final VisitEvalChoiceRepository visitEvalChoiceRepository;
 
 	@Autowired
 	public SoloDiaryService(SoloDiaryRepository soloDiaryRepository, VisitExhRepository visitExhRepository,
-		VisitEvalChoiceRepository visitExhChoiceRepository) {
+		VisitEvalChoiceRepository visitEvalChoiceRepository) {
 		this.soloDiaryRepository = soloDiaryRepository;
 		this.visitExhRepository = visitExhRepository;
-		this.visitExhChoiceRepository = visitExhChoiceRepository;
+		this.visitEvalChoiceRepository = visitEvalChoiceRepository;
 	}
 
 	@Override
@@ -46,7 +52,7 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 		List<EvalInfo> evalInfoList = new ArrayList<>();
 		List<SoloDiaryInfo> soloDiaryInfoList = new ArrayList<>();
 		// 평가 정보 가져오기
-		List<Map<String, Object>> evalChoices = visitExhChoiceRepository.getChoices(visitExhId);
+		List<Map<String, Object>> evalChoices = visitEvalChoiceRepository.getChoices(visitExhId);
 
 		for (Map<String, Object> info : evalChoices) {
 			EvalFactorEntity evalFactor = (EvalFactorEntity)info.get("evalFactor");
@@ -122,6 +128,83 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
 		soloDiaryRepository.delete(soloDiary);
+	}
+
+	@Transactional
+	@Override
+	public void updateEvaluationList(EvalChoiceUpdateCommand command) {
+		Long userId = getUserId();
+		// 1) 소유자 검증
+		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+
+		// 2) 기존 선택 불러오기
+		List<VisitEvalChoiceEntity> existing = visitEvalChoiceRepository.findByVisitExhId(command.getVisitExhId());
+
+		List<VisitEvalChoiceEntity> toSave = new ArrayList<>();
+		List<VisitEvalChoiceEntity> toDelete = new ArrayList<>();
+
+		// --- 3) 단일선택(upsert) 처리: factorId != 1 ---
+		for (VisitEvalChoiceEntity visitEvalChoice : existing) {
+			Integer compareFactorId = visitEvalChoice.getFactorId();
+
+			if (compareFactorId != 1) {
+				// 2번, 3번은 하나씩만 있어서 optionId만 바꿔주면 됨.
+				EvalChoiceInfo evalChoiceInfo = command.evalChoiceInfoList.stream()
+					.filter(value -> Objects.equals(value.getFactorId(), compareFactorId))
+					.findFirst()
+					.orElse(null);
+				assert evalChoiceInfo != null;
+				visitEvalChoice.updateOptionId(evalChoiceInfo.getOptionId());
+				toSave.add(visitEvalChoice);
+			}
+		}
+
+		// --- 4) 다중선택(sync) 처리: factorId == 1 ---
+		List<Integer> requestedMulti = command.evalChoiceInfoList.stream()
+			.filter(info -> info.getFactorId() == 1)
+			.map(EvalChoiceInfo::getOptionId)
+			.toList();
+		Set<Integer> requestedSet = new HashSet<>(requestedMulti);
+
+		List<VisitEvalChoiceEntity> currentMulti = existing.stream()
+			.filter(value -> value.getFactorId().equals(1))
+			.toList();
+		Set<Integer> currentSet = currentMulti.stream()
+			.map(VisitEvalChoiceEntity::getOptionId)
+			.collect(Collectors.toSet());
+
+		// 추가할 것(요청 - 현재)
+		Set<Integer> toAdd = new HashSet<>(requestedSet);
+		toAdd.removeAll(currentSet);
+
+		// 제거할 것(현재 - 요청)
+		Set<Integer> toRemove = new HashSet<>(currentSet);
+		toRemove.removeAll(requestedSet);
+
+		// 추가
+		for (Integer optionId : toAdd) {
+			toSave.add(VisitEvalChoiceEntity.builder()
+				.visitExhId(command.getVisitExhId())
+				.factorId(1)
+				.optionId(optionId)
+				.build());
+		}
+
+		// 삭제
+		for (VisitEvalChoiceEntity entity : currentMulti) {
+			if (toRemove.contains(entity.getOptionId())) {
+				toDelete.add(entity);
+			}
+		}
+
+		// 5) 저장/삭제
+		if (!toDelete.isEmpty()) {
+			visitEvalChoiceRepository.deleteAll(toDelete);
+		}
+		if (!toSave.isEmpty()) {
+			visitEvalChoiceRepository.saveAll(toSave);
+		}
 	}
 
 	private Long getUserId() {
