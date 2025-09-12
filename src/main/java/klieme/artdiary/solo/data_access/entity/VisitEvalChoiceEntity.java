@@ -27,13 +27,20 @@ public class VisitEvalChoiceEntity {
 	private Long choiceId;
 	@Column(name = "visit_exh_id", nullable = false)
 	private Long visitExhId;
+	@Column(name = "factor_id", nullable = false)
+	private Integer factorId;
 	@Column(name = "option_id", nullable = false)
 	private Integer optionId;
 
 	@Builder
-	public VisitEvalChoiceEntity(Long choiceId, Long visitExhId, Integer optionId) {
+	public VisitEvalChoiceEntity(Long choiceId, Long visitExhId, Integer factorId, Integer optionId) {
 		this.choiceId = choiceId;
 		this.visitExhId = visitExhId;
+		this.factorId = factorId;
+		this.optionId = optionId;
+	}
+
+	public void updateOptionId(Integer optionId) {
 		this.optionId = optionId;
 	}
 }
