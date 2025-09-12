@@ -26,6 +26,7 @@ import klieme.artdiary.solo.data_access.repository.SoloDiaryRepository;
 import klieme.artdiary.solo.data_access.repository.VisitEvalChoiceRepository;
 import klieme.artdiary.solo.dto.EvalChoiceInfo;
 import klieme.artdiary.solo.model.EvalInfo;
+import klieme.artdiary.solo.dto.SoloDiaryForCreateInfo;
 import klieme.artdiary.solo.model.SoloDiaryInfo;
 
 @Service
@@ -75,29 +76,45 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 
 	@Transactional
 	@Override
-	public void createSoloDiary(SoloDiaryCreateUpdateCommand command) {
+	public void createSoloDiary(SoloDiaryCreateCommand command) {
 		Long userId = getUserId();
 		// visitExh의 userId 확인
 		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)
 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
-		// [TODO] 평가
+		if (command.getInitEval()) {
+			// 평가 없는 경우 추가
+			List<VisitEvalChoiceEntity> newVisitEvalChoiceList = new ArrayList<>();
 
+			for (EvalChoiceInfo info : command.getEvalChoiceInfoList()) {
+				VisitEvalChoiceEntity newVisitEvalChoice = VisitEvalChoiceEntity.builder()
+					.visitExhId(command.getVisitExhId())
+					.factorId(info.getFactorId())
+					.optionId(info.getOptionId())
+					.build();
+				newVisitEvalChoiceList.add(newVisitEvalChoice);
+			}
+			visitEvalChoiceRepository.saveAll(newVisitEvalChoiceList);
+		}
+		List<SoloDiaryEntity> newSoloDiaryList = new ArrayList<>();
 		// soloDiary 추가
-		SoloDiaryEntity newSoloDiary = SoloDiaryEntity.builder()
-			.visitExhId(command.getVisitExhId())
-			.questionId(command.getQuestionId())
-			.answer(command.getAnswer())
-			.writeDate(command.getWriteDate())
-			.writeDate(command.getWriteDate())
-			.isPublic(command.getIsPublic())
-			.build();
-		soloDiaryRepository.save(newSoloDiary);
+		for (SoloDiaryForCreateInfo info : command.getSoloDiaryInfoList()) {
+			SoloDiaryEntity newSoloDiary = SoloDiaryEntity.builder()
+				.visitExhId(command.getVisitExhId())
+				.questionId(info.getQuestionId())
+				.answer(info.getAnswer())
+				.writeDate(info.getWriteDate())
+				.writeDate(info.getWriteDate())
+				.isPublic(info.getIsPublic())
+				.build();
+			newSoloDiaryList.add(newSoloDiary);
+		}
+		soloDiaryRepository.saveAll(newSoloDiaryList);
 	}
 
 	@Transactional
 	@Override
-	public void updateSoloDiary(SoloDiaryCreateUpdateCommand command) {
+	public void updateSoloDiary(SoloDiaryUpdateCommand command) {
 		Long userId = getUserId();
 		// visitExh의 userId 확인
 		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)

@@ -18,8 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import klieme.artdiary.solo.dto.EvalChoiceInfo;
+import klieme.artdiary.solo.dto.SoloDiaryForCreateInfo;
 import klieme.artdiary.solo.service.SoloDiaryOperationUseCase;
 import klieme.artdiary.solo.service.SoloDiaryReadUseCase;
+import klieme.artdiary.solo.ui.request_body.CreateEvalSoloDiaryRequest;
 import klieme.artdiary.solo.ui.request_body.EvalChoiceRequest;
 import klieme.artdiary.solo.ui.request_body.SoloDiaryRequest;
 import klieme.artdiary.solo.ui.view.SoloDiaryView;
@@ -61,16 +63,25 @@ public class SoloDiaryController {
 	@PostMapping("/diaries")
 	public ResponseEntity<Void> createDiary(
 		@PathVariable(name = "visitExhId") Long visitExhId,
-		@Valid @RequestBody SoloDiaryRequest request
+		@Valid @RequestBody CreateEvalSoloDiaryRequest request
 	) {
 		log.info("[기록&평가 추가]");
 		// request body 데이터 받아오기
-		var command = SoloDiaryOperationUseCase.SoloDiaryCreateUpdateCommand.builder()
+		var command = SoloDiaryOperationUseCase.SoloDiaryCreateCommand.builder()
 			.visitExhId(visitExhId)
-			.questionId(request.getQuestionId())
-			.answer(request.getAnswer())
-			.writeDate(request.getWriteDate())
-			.isPublic(request.getIsPublic())
+			.initEval(request.getInitEval())
+			.soloDiaryInfoList(request.getSoloDiaryInfoList().stream().map(req -> SoloDiaryForCreateInfo.builder()
+				.questionId(req.getQuestionId())
+				.answer(req.getAnswer())
+				.writeDate(req.getWriteDate())
+				.isPublic(req.getIsPublic())
+				.build()).toList())
+			.evalChoiceInfoList(
+				request.getInitEval() ? request.getEvalChoiceInfoList().stream().map(req -> EvalChoiceInfo.builder()
+						.factorId(req.getFactorId())
+						.optionId(req.getOptionId())
+						.build())
+					.toList() : null)
 			.build();
 		// 비즈니스 로직 호출
 		soloDiaryOperationUseCase.createSoloDiary(command);
@@ -90,7 +101,7 @@ public class SoloDiaryController {
 	) {
 		log.info("[기록 수정]");
 		// request body 데이터 받아오기
-		var command = SoloDiaryOperationUseCase.SoloDiaryCreateUpdateCommand.builder()
+		var command = SoloDiaryOperationUseCase.SoloDiaryUpdateCommand.builder()
 			.visitExhId(visitExhId)
 			.soloDiaryId(soloDiaryId)
 			.questionId(request.getQuestionId())

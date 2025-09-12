@@ -20,7 +20,7 @@ public class FormatDate {
 		if (dateTime == null) {
 			return null;
 		}
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss");
 		return dateTime.format(formatter);
 	}
 }
