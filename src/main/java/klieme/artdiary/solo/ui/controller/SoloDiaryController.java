@@ -1,6 +1,7 @@
 package klieme.artdiary.solo.ui.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping(value = "/exh-visits/{visitExhId}")
+@RequestMapping(value = "/exh-visits/{exhId}")
 public class SoloDiaryController {
 	private final SoloDiaryOperationUseCase soloDiaryOperationUseCase;
 	private final SoloDiaryReadUseCase soloDiaryReadUseCase;
@@ -43,32 +44,32 @@ public class SoloDiaryController {
 
 	/**
 	 * 기록 목록 조회
-	 * "/exh-visits/${visit_exh_id}/diaries"
+	 * "/exh-visits/${exh_id}/diaries"
 	 */
 	@GetMapping("/diaries")
-	public ResponseEntity<SoloDiaryView> getDiaries(@PathVariable(name = "visitExhId") Long visitExhId) {
+	public ResponseEntity<SoloDiaryView> getDiaries(@PathVariable(name = "exhId") Long exhId) {
 
 		log.info("[기록&평가 목록 조회]");
 
 		// 비즈니스 로직 호출
-		SoloDiaryReadUseCase.FindSoloDiaryResult soloDiaryResults = soloDiaryReadUseCase.getSoloDiaryList(visitExhId);
+		SoloDiaryReadUseCase.FindSoloDiaryResult soloDiaryResults = soloDiaryReadUseCase.getSoloDiaryList(exhId);
 
 		return ResponseEntity.ok(SoloDiaryView.builder().result(soloDiaryResults).build());
 	}
 
 	/**
 	 *기록 추가
-	 * "/exh-visits/${visit_exh_id}/diaries"
+	 * "/exh-visits/${exh_id}/diaries"
 	 */
 	@PostMapping("/diaries")
 	public ResponseEntity<Void> createDiary(
-		@PathVariable(name = "visitExhId") Long visitExhId,
+		@PathVariable(name = "exhId") Long exhId,
 		@Valid @RequestBody CreateEvalSoloDiaryRequest request
 	) {
 		log.info("[기록&평가 추가]");
 		// request body 데이터 받아오기
 		var command = SoloDiaryOperationUseCase.SoloDiaryCreateCommand.builder()
-			.visitExhId(visitExhId)
+			.exhId(exhId)
 			.initEval(request.getInitEval())
 			.soloDiaryInfoList(request.getSoloDiaryInfoList().stream().map(req -> SoloDiaryForCreateInfo.builder()
 				.questionId(req.getQuestionId())
@@ -91,18 +92,18 @@ public class SoloDiaryController {
 
 	/**
 	 * 기록 수정
-	 * "/exh-visits/{visit_exh_id}/diaries/{solo_diary_id}"
+	 * "/exh-visits/{exh_id}/diaries/{solo_diary_id}"
 	 */
 	@PatchMapping("/diaries/{soloDiaryId}")
 	public ResponseEntity<Void> updateMyDiary(
-		@PathVariable(name = "visitExhId") Long visitExhId,
+		@PathVariable(name = "exhId") Long exhId,
 		@PathVariable(name = "soloDiaryId") Long soloDiaryId,
 		@Valid @RequestBody SoloDiaryRequest request
 	) {
 		log.info("[기록 수정]");
 		// request body 데이터 받아오기
 		var command = SoloDiaryOperationUseCase.SoloDiaryUpdateCommand.builder()
-			.visitExhId(visitExhId)
+			.exhId(exhId)
 			.soloDiaryId(soloDiaryId)
 			.questionId(request.getQuestionId())
 			.answer(request.getAnswer())
@@ -117,35 +118,34 @@ public class SoloDiaryController {
 
 	@DeleteMapping("/diaries/{soloDiaryId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void deleteDiary(@PathVariable(name = "visitExhId") Long visitExhId,
+	public void deleteDiary(@PathVariable(name = "exhId") Long exhId,
 		@PathVariable(name = "soloDiaryId") Long soloDiaryId) {
 		log.info("[기록 삭제]");
 
-		soloDiaryOperationUseCase.deleteSoloDiary(visitExhId, soloDiaryId);
+		soloDiaryOperationUseCase.deleteSoloDiary(exhId, soloDiaryId);
 	}
 
 	/**
 	 * 평가 수정
-	 * "/exh-visits/{visit_exh_id}/evaluations"
+	 * "/exh-visits/{exh_id}/evaluations"
 	 */
 	@PatchMapping("/evaluations")
 	public ResponseEntity<Void> updateEvaluations(
-		@PathVariable(name = "visitExhId") Long visitExhId,
+		@PathVariable(name = "exhId") Long exhId,
 		@Valid @RequestBody @NotEmpty List<EvalChoiceRequest> request
 	) {
 		log.info("[평가 수정]");
 		for (EvalChoiceRequest request1 : request) {
-			System.out.println(request1.getFactorId() + ", " + request1.getOptionId());
+			System.out.println(request1.getOptionId());
 		}
 		// request body 데이터 받아오기
 		var command = SoloDiaryOperationUseCase.EvalChoiceUpdateCommand.builder()
-			.visitExhId(visitExhId)
-			.evalChoiceInfoList(request.stream()
-				.map((req) -> EvalChoiceInfo.builder().factorId(req.getFactorId()).optionId(req.getOptionId()).build())
-				.toList())
+			.exhId(exhId)
+			.optionIdList(request.stream().map(EvalChoiceRequest::getOptionId).collect(Collectors.toList()))
 			.build();
 		// 비즈니스 로직 호출
 		soloDiaryOperationUseCase.updateEvaluationList(command);
+
 		return ResponseEntity.status(HttpStatus.OK).build();
 	}
 }

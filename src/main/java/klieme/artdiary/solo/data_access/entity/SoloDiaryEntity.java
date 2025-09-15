@@ -27,8 +27,12 @@ public class SoloDiaryEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "solo_diary_id", nullable = false)
 	private Long soloDiaryId;
-	@Column(name = "visit_exh_id", nullable = false)
-	private Long visitExhId;
+	@Column(name = "user_id", nullable = false)
+	private Long userId;
+	@Column(name = "exh_id", nullable = false)
+	private Long exhId;
+	// @Column(nullable = false)
+	// private UserExhPresenceId userExhPresenceId;
 	@Column(name = "question_id", nullable = false)
 	private Long questionId;
 	@Column(nullable = false)
@@ -39,10 +43,11 @@ public class SoloDiaryEntity {
 	private Boolean isPublic;
 
 	@Builder
-	public SoloDiaryEntity(Long soloDiaryId, Long visitExhId, Long questionId, String answer, Boolean isPublic,
+	public SoloDiaryEntity(Long soloDiaryId, Long userId, Long exhId, Long questionId, String answer, Boolean isPublic,
 		LocalDateTime writeDate) {
 		this.soloDiaryId = soloDiaryId;
-		this.visitExhId = visitExhId;
+		this.userId = userId;
+		this.exhId = exhId;
 		this.questionId = questionId;
 		this.answer = answer;
 		this.isPublic = isPublic;
