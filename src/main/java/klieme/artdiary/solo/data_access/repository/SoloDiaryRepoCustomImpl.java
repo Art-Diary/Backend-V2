@@ -19,7 +19,7 @@ public class SoloDiaryRepoCustomImpl implements SoloDiaryRepoCustom {
 	private final JPAQueryFactory query;
 
 	@Override
-	public List<Map<String, Object>> getSoloDiaryListWithQuestion(Long visitExhId) {
+	public List<Map<String, Object>> getSoloDiaryListWithQuestion(Long exhId, Long userId) {
 		QSoloDiaryEntity soloDiary = QSoloDiaryEntity.soloDiaryEntity;
 		QQuestionEntity question = QQuestionEntity.questionEntity;
 
@@ -28,7 +28,7 @@ public class SoloDiaryRepoCustomImpl implements SoloDiaryRepoCustom {
 			.from(soloDiary)
 			.leftJoin(question).on(soloDiary.questionId.eq(question.questionId))
 			.fetchJoin()
-			.where(soloDiary.visitExhId.eq(visitExhId))
+			.where(soloDiary.exhId.eq(exhId), soloDiary.userId.eq(userId))
 			.orderBy(soloDiary.writeDate.desc())
 			.fetch();
 

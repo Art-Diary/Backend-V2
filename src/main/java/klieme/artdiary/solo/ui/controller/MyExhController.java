@@ -34,12 +34,11 @@ public class MyExhController {
 		log.info("[내 기록의 전시회 목록 조회]");
 
 		List<MyExhReadUseCase.FindMyVisitExhsResult> results = myExhReadUseCase.getMyVisitExhsList();
-
 		List<MyVisitExhsView> viewResult = new ArrayList<>();
 
-		for (MyExhReadUseCase.FindMyVisitExhsResult result : results) {
-			viewResult.add(MyVisitExhsView.builder().result(result).build());
-		}
+		results.forEach((res) -> {
+			viewResult.add(MyVisitExhsView.builder().result(res).build());
+		});
 		return ResponseEntity.ok(viewResult);
 	}
 }

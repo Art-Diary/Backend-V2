@@ -8,7 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class EvalChoiceRequest {
 	@NotNull
-	private Integer factorId;
-	@NotNull
 	private Integer optionId;
 }

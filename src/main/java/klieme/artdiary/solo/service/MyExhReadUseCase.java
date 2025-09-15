@@ -20,17 +20,15 @@ public interface MyExhReadUseCase {
 	@Builder
 	class FindMyVisitExhsResult {
 		private final Long exhId;
-		private final Long visitExhId;
 		private final String exhName;
 		private final String gallery;
 		private final String poster;
 		private final String visitDate;
 
 		@Builder
-		public static FindMyVisitExhsResult findMyVisitExhs(ExhEntity entity, Long visitExhId, LocalDate visitDate) {
+		public static FindMyVisitExhsResult findMyVisitExhs(ExhEntity entity, LocalDate visitDate) {
 			return FindMyVisitExhsResult.builder()
 				.exhId(entity.getExhId())
-				.visitExhId(visitExhId)
 				.exhName(entity.getExhName())
 				.gallery(entity.getGallery())
 				.poster(entity.getPoster())

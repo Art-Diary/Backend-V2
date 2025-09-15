@@ -24,7 +24,7 @@ public interface SoloDiaryOperationUseCase {
 	@Getter
 	@ToString
 	class SoloDiaryCreateCommand {
-		private final Long visitExhId;
+		private final Long exhId;
 		private final Boolean initEval;
 		private final List<SoloDiaryForCreateInfo> soloDiaryInfoList;
 		private final List<EvalChoiceInfo> evalChoiceInfoList;
@@ -35,7 +35,7 @@ public interface SoloDiaryOperationUseCase {
 	@Getter
 	@ToString
 	class SoloDiaryUpdateCommand {
-		private final Long visitExhId;
+		private final Long exhId;
 		private final Long soloDiaryId;
 		private final Long questionId;
 		private final String answer;
@@ -48,7 +48,7 @@ public interface SoloDiaryOperationUseCase {
 	@Getter
 	@ToString
 	class EvalChoiceUpdateCommand {
-		private final Long visitExhId;
-		List<EvalChoiceInfo> evalChoiceInfoList;
+		private final Long exhId;
+		List<Integer> optionIdList;
 	}
 }

@@ -12,7 +12,6 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MyVisitExhsView {
 	private final Long exhId;
-	private final Long visitExhId;
 	private final String exhName;
 	private final String gallery;
 	private final String poster;
@@ -21,7 +20,6 @@ public class MyVisitExhsView {
 	@Builder
 	public MyVisitExhsView(MyExhReadUseCase.FindMyVisitExhsResult result) {
 		this.exhId = result.getExhId();
-		this.visitExhId = result.getVisitExhId();
 		this.gallery = result.getGallery();
 		this.exhName = result.getExhName();
 		this.poster = result.getPoster();

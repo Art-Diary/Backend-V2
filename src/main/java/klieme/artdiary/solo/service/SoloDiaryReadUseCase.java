@@ -1,28 +1,15 @@
 package klieme.artdiary.solo.service;
 
-import java.time.LocalDate;
 import java.util.List;
 
 import klieme.artdiary.solo.model.EvalInfo;
 import klieme.artdiary.solo.model.SoloDiaryInfo;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 public interface SoloDiaryReadUseCase {
-	FindSoloDiaryResult getSoloDiaryList(Long visitExhId);
-
-	@EqualsAndHashCode
-	@Getter
-	@ToString
-	@Builder
-	class MyDiariesFindQuery {
-		private final Long exhId;
-		private final Boolean forget;
-		private final LocalDate visitDate;
-		private final Long gatherId;
-	}
+	FindSoloDiaryResult getSoloDiaryList(Long exhId);
 
 	@Getter
 	@ToString

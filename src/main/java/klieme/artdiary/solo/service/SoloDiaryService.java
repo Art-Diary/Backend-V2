@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -16,14 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import klieme.artdiary.common.api.ArtDiaryException;
 import klieme.artdiary.common.api.MessageType;
-import klieme.artdiary.record_data_access.repository.VisitExhRepository;
 import klieme.artdiary.solo.data_access.entity.EvalFactorEntity;
 import klieme.artdiary.solo.data_access.entity.EvalOptionEntity;
+import klieme.artdiary.solo.data_access.entity.ExhEvalChoiceEntity;
+import klieme.artdiary.solo.data_access.entity.ExhEvalChoiceId;
 import klieme.artdiary.solo.data_access.entity.QuestionEntity;
 import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
-import klieme.artdiary.solo.data_access.entity.VisitEvalChoiceEntity;
+import klieme.artdiary.solo.data_access.entity.UserExhPresenceId;
 import klieme.artdiary.solo.data_access.repository.SoloDiaryRepository;
-import klieme.artdiary.solo.data_access.repository.VisitEvalChoiceRepository;
+import klieme.artdiary.solo.data_access.repository.UserExhPresenceRepository;
+import klieme.artdiary.solo.data_access.repository.ExhEvalChoiceRepository;
 import klieme.artdiary.solo.dto.EvalChoiceInfo;
 import klieme.artdiary.solo.model.EvalInfo;
 import klieme.artdiary.solo.dto.SoloDiaryForCreateInfo;
@@ -32,28 +33,32 @@ import klieme.artdiary.solo.model.SoloDiaryInfo;
 @Service
 public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryReadUseCase {
 	private final SoloDiaryRepository soloDiaryRepository;
-	private final VisitExhRepository visitExhRepository;
-	private final VisitEvalChoiceRepository visitEvalChoiceRepository;
+	private final ExhEvalChoiceRepository exhEvalChoiceRepository;
+	private final UserExhPresenceRepository userExhPresenceRepository;
 
 	@Autowired
-	public SoloDiaryService(SoloDiaryRepository soloDiaryRepository, VisitExhRepository visitExhRepository,
-		VisitEvalChoiceRepository visitEvalChoiceRepository) {
+	public SoloDiaryService(SoloDiaryRepository soloDiaryRepository, ExhEvalChoiceRepository exhEvalChoiceRepository,
+		UserExhPresenceRepository userExhPresenceRepository) {
 		this.soloDiaryRepository = soloDiaryRepository;
-		this.visitExhRepository = visitExhRepository;
-		this.visitEvalChoiceRepository = visitEvalChoiceRepository;
+		this.exhEvalChoiceRepository = exhEvalChoiceRepository;
+		this.userExhPresenceRepository = userExhPresenceRepository;
 	}
 
 	@Override
-	public FindSoloDiaryResult getSoloDiaryList(Long visitExhId) {
+	public FindSoloDiaryResult getSoloDiaryList(Long exhId) {
 		Long userId = getUserId();
-		// visitExh의 userId 확인
-		visitExhRepository.findByVisitExhIdAndUserId(visitExhId, userId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// userExhPresence의 exhid와 userid 확인
+		Boolean isPresent = userExhPresenceRepository.existsByUserExhPresenceId(
+			UserExhPresenceId.builder().userId(userId).exhId(exhId).build());
 
-		List<EvalInfo> evalInfoList = new ArrayList<>();
-		List<SoloDiaryInfo> soloDiaryInfoList = new ArrayList<>();
+		if (!isPresent) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
+		}
+
+		List<EvalInfo> evalInfoList = new ArrayList<>(); // 평가 정보 목록
+		List<SoloDiaryInfo> soloDiaryInfoList = new ArrayList<>(); // 기록 목록
 		// 평가 정보 가져오기
-		List<Map<String, Object>> evalChoices = visitEvalChoiceRepository.getChoices(visitExhId);
+		List<Map<String, Object>> evalChoices = exhEvalChoiceRepository.getChoices(exhId, userId); // 수정
 
 		for (Map<String, Object> info : evalChoices) {
 			EvalFactorEntity evalFactor = (EvalFactorEntity)info.get("evalFactor");
@@ -62,8 +67,9 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 			evalInfoList.add(EvalInfo.of(evalFactor, evalOption));
 		}
 
-		// soloDiary에서 visitExhId에 해당하는 것 모두 가져오기 - question 필요
-		List<Map<String, Object>> diaryListWithQuestion = soloDiaryRepository.getSoloDiaryListWithQuestion(visitExhId);
+		// soloDiary에서 exhid와 userid에 해당하는 것 모두 가져오기 - question 필요
+		List<Map<String, Object>> diaryListWithQuestion = soloDiaryRepository.getSoloDiaryListWithQuestion(exhId,
+			userId);
 
 		for (Map<String, Object> info : diaryListWithQuestion) {
 			SoloDiaryEntity soloDiary = (SoloDiaryEntity)info.get("soloDiary");
@@ -78,32 +84,37 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 	@Override
 	public void createSoloDiary(SoloDiaryCreateCommand command) {
 		Long userId = getUserId();
-		// visitExh의 userId 확인
-		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// userExhPresence의 exhid와 userid 확인
+		Boolean isPresent = userExhPresenceRepository.existsByUserExhPresenceId(
+			UserExhPresenceId.builder().userId(userId).exhId(command.getExhId()).build());
 
+		if (!isPresent) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
+		}
 		if (command.getInitEval()) {
 			// 평가 없는 경우 추가
-			List<VisitEvalChoiceEntity> newVisitEvalChoiceList = new ArrayList<>();
+			List<ExhEvalChoiceEntity> newVisitEvalChoiceList = new ArrayList<>();
 
 			for (EvalChoiceInfo info : command.getEvalChoiceInfoList()) {
-				VisitEvalChoiceEntity newVisitEvalChoice = VisitEvalChoiceEntity.builder()
-					.visitExhId(command.getVisitExhId())
-					.factorId(info.getFactorId())
-					.optionId(info.getOptionId())
+				ExhEvalChoiceEntity newVisitEvalChoice = ExhEvalChoiceEntity.builder()
+					.exhEvalChoiceId(ExhEvalChoiceId.builder()
+						.optionId(info.getOptionId())
+						.userId(userId)
+						.exhId(command.getExhId())
+						.build())
 					.build();
 				newVisitEvalChoiceList.add(newVisitEvalChoice);
 			}
-			visitEvalChoiceRepository.saveAll(newVisitEvalChoiceList);
+			exhEvalChoiceRepository.saveAll(newVisitEvalChoiceList);
 		}
 		List<SoloDiaryEntity> newSoloDiaryList = new ArrayList<>();
 		// soloDiary 추가
 		for (SoloDiaryForCreateInfo info : command.getSoloDiaryInfoList()) {
 			SoloDiaryEntity newSoloDiary = SoloDiaryEntity.builder()
-				.visitExhId(command.getVisitExhId())
+				.userId(userId)
+				.exhId(command.getExhId())
 				.questionId(info.getQuestionId())
 				.answer(info.getAnswer())
-				.writeDate(info.getWriteDate())
 				.writeDate(info.getWriteDate())
 				.isPublic(info.getIsPublic())
 				.build();
@@ -116,13 +127,16 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 	@Override
 	public void updateSoloDiary(SoloDiaryUpdateCommand command) {
 		Long userId = getUserId();
-		// visitExh의 userId 확인
-		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// userExhPresence의 exhid와 userid 확인
+		Boolean isPresent = userExhPresenceRepository.existsByUserExhPresenceId(
+			UserExhPresenceId.builder().userId(userId).exhId(command.getExhId()).build());
+
+		if (!isPresent) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
+		}
 		// soloDiary 조회
-		SoloDiaryEntity soloDiary = soloDiaryRepository.findBySoloDiaryIdAndVisitExhIdAndQuestionId(
-				command.getSoloDiaryId(), command.getVisitExhId(), command.getQuestionId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		SoloDiaryEntity soloDiary = soloDiaryRepository.findBySoloDiaryIdAndUserIdAndExhId(command.getSoloDiaryId(),
+			userId, command.getExhId()).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
 		soloDiary.updateSoloDiary(SoloDiaryEntity.builder()
 			.questionId(command.getQuestionId())
@@ -135,13 +149,17 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 
 	@Transactional
 	@Override
-	public void deleteSoloDiary(Long visitExhId, Long soloDiaryId) {
+	public void deleteSoloDiary(Long exhId, Long soloDiaryId) {
 		Long userId = getUserId();
-		// visitExh의 userId 확인
-		visitExhRepository.findByVisitExhIdAndUserId(visitExhId, userId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// userExhPresence의 exhid와 userid 확인
+		Boolean isPresent = userExhPresenceRepository.existsByUserExhPresenceId(
+			UserExhPresenceId.builder().userId(userId).exhId(exhId).build());
+
+		if (!isPresent) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
+		}
 		// soloDiary 조회
-		SoloDiaryEntity soloDiary = soloDiaryRepository.findBySoloDiaryIdAndVisitExhId(soloDiaryId, visitExhId)
+		SoloDiaryEntity soloDiary = soloDiaryRepository.findBySoloDiaryIdAndUserIdAndExhId(soloDiaryId, userId, exhId)
 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
 		soloDiaryRepository.delete(soloDiary);
@@ -151,44 +169,22 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 	@Override
 	public void updateEvaluationList(EvalChoiceUpdateCommand command) {
 		Long userId = getUserId();
-		// 1) 소유자 검증
-		visitExhRepository.findByVisitExhIdAndUserId(command.getVisitExhId(), userId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// 1) userExhPresence의 exhid와 userid 확인
+		Boolean isPresent = userExhPresenceRepository.existsByUserExhPresenceId(
+			UserExhPresenceId.builder().userId(userId).exhId(command.getExhId()).build());
 
-		// 2) 기존 선택 불러오기
-		List<VisitEvalChoiceEntity> existing = visitEvalChoiceRepository.findByVisitExhId(command.getVisitExhId());
-
-		List<VisitEvalChoiceEntity> toSave = new ArrayList<>();
-		List<VisitEvalChoiceEntity> toDelete = new ArrayList<>();
-
-		// --- 3) 단일선택(upsert) 처리: factorId != 1 ---
-		for (VisitEvalChoiceEntity visitEvalChoice : existing) {
-			Integer compareFactorId = visitEvalChoice.getFactorId();
-
-			if (compareFactorId != 1) {
-				// 2번, 3번은 하나씩만 있어서 optionId만 바꿔주면 됨.
-				EvalChoiceInfo evalChoiceInfo = command.evalChoiceInfoList.stream()
-					.filter(value -> Objects.equals(value.getFactorId(), compareFactorId))
-					.findFirst()
-					.orElse(null);
-				assert evalChoiceInfo != null;
-				visitEvalChoice.updateOptionId(evalChoiceInfo.getOptionId());
-				toSave.add(visitEvalChoice);
-			}
+		if (!isPresent) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
 		}
 
-		// --- 4) 다중선택(sync) 처리: factorId == 1 ---
-		List<Integer> requestedMulti = command.evalChoiceInfoList.stream()
-			.filter(info -> info.getFactorId() == 1)
-			.map(EvalChoiceInfo::getOptionId)
-			.toList();
-		Set<Integer> requestedSet = new HashSet<>(requestedMulti);
+		// 2) 기존 선택 불러오기
+		List<ExhEvalChoiceEntity> existing = exhEvalChoiceRepository.findByExhEvalChoiceIdUserIdAndExhEvalChoiceIdExhId(
+			userId, command.getExhId());
 
-		List<VisitEvalChoiceEntity> currentMulti = existing.stream()
-			.filter(value -> value.getFactorId().equals(1))
-			.toList();
-		Set<Integer> currentSet = currentMulti.stream()
-			.map(VisitEvalChoiceEntity::getOptionId)
+		// 3) 추가 및 삭제 처리
+		Set<Integer> requestedSet = new HashSet<>(command.getOptionIdList());
+		Set<Integer> currentSet = existing.stream()
+			.map(entity -> entity.getExhEvalChoiceId().getOptionId())
 			.collect(Collectors.toSet());
 
 		// 추가할 것(요청 - 현재)
@@ -199,28 +195,28 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 		Set<Integer> toRemove = new HashSet<>(currentSet);
 		toRemove.removeAll(requestedSet);
 
+		List<ExhEvalChoiceEntity> toSave = new ArrayList<>();
+		List<ExhEvalChoiceEntity> toDelete = new ArrayList<>();
+
 		// 추가
 		for (Integer optionId : toAdd) {
-			toSave.add(VisitEvalChoiceEntity.builder()
-				.visitExhId(command.getVisitExhId())
-				.factorId(1)
-				.optionId(optionId)
+			toSave.add(ExhEvalChoiceEntity.builder()
+				.exhEvalChoiceId(
+					ExhEvalChoiceId.builder().optionId(optionId).userId(userId).exhId(command.getExhId()).build())
 				.build());
 		}
-
 		// 삭제
-		for (VisitEvalChoiceEntity entity : currentMulti) {
-			if (toRemove.contains(entity.getOptionId())) {
+		for (ExhEvalChoiceEntity entity : existing) {
+			if (toRemove.contains(entity.getExhEvalChoiceId().getOptionId())) {
 				toDelete.add(entity);
 			}
 		}
-
 		// 5) 저장/삭제
 		if (!toDelete.isEmpty()) {
-			visitEvalChoiceRepository.deleteAll(toDelete);
+			exhEvalChoiceRepository.deleteAll(toDelete);
 		}
 		if (!toSave.isEmpty()) {
-			visitEvalChoiceRepository.saveAll(toSave);
+			exhEvalChoiceRepository.saveAll(toSave);
 		}
 	}
 

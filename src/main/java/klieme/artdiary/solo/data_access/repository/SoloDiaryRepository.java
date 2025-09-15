@@ -9,8 +9,5 @@ import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
 
 @Repository
 public interface SoloDiaryRepository extends JpaRepository<SoloDiaryEntity, Long>, SoloDiaryRepoCustom {
-	Optional<SoloDiaryEntity> findBySoloDiaryIdAndVisitExhIdAndQuestionId(Long soloDiaryId, Long visitExhId,
-		Long questionId);
-
-	Optional<SoloDiaryEntity> findBySoloDiaryIdAndVisitExhId(Long soloDiaryId, Long visitExhId);
+	Optional<SoloDiaryEntity> findBySoloDiaryIdAndUserIdAndExhId(Long soloDiaryId, Long useId, Long exhId);
 }

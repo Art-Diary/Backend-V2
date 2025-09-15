@@ -28,15 +28,14 @@ public class MyExhService implements MyExhReadUseCase {
 		사용자가 방문한 전시회 정보와 함께 가져오기
 		*/
 		Long userId = getUserId();
-		List<Map<String, Object>> visitExhList = visitExhRepository.getVisitExhListWithExhInfo(userId, null);
+		List<Map<String, Object>> visitExhList = visitExhRepository.getVisitExhListWithExhInfo(userId);
 		List<FindMyVisitExhsResult> result = new ArrayList<>();
 
 		for (Map<String, Object> info : visitExhList) {
 			ExhEntity exhibition = (ExhEntity)info.get("exhibition");
-			Long visitExhId = (Long)info.get("visitExhId");
 			LocalDate visitDate = (LocalDate)info.get("visitDate");
 
-			result.add(FindMyVisitExhsResult.findMyVisitExhs(exhibition, visitExhId, visitDate));
+			result.add(FindMyVisitExhsResult.findMyVisitExhs(exhibition, visitDate));
 		}
 		return result;
 	}
