@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import klieme.artdiary.calendar.enums.CalendarKind;
-import klieme.artdiary.calendar.info.ScheduleInfo;
+import klieme.artdiary.calendar.dto.ScheduleInfo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

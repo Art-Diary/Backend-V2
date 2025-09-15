@@ -10,10 +10,13 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
+import klieme.artdiary.calendar.enums.CalendarKind;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.data_access.entity.QExhEntity;
-import klieme.artdiary.record_data_access.entity.QVisitDateEntity;
+import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
+import klieme.artdiary.gathering.data_access.entity.QGatheringEntity;
 import klieme.artdiary.record_data_access.entity.QVisitExhEntity;
+import klieme.artdiary.record_data_access.entity.VisitExhEntity;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -21,28 +24,18 @@ public class VisitExhRepoCustomImpl implements VisitExhRepoCustom {
 	private final JPAQueryFactory query;
 
 	@Override
-	public List<Map<String, Object>> getVisitExhListWithExhInfo(Long userId, Long gatheringId) {
+	public List<Map<String, Object>> getVisitExhListWithExhInfo(Long userId) {
 		QExhEntity exh = QExhEntity.exhEntity;
 		QVisitExhEntity visitExh = QVisitExhEntity.visitExhEntity;
-		QVisitDateEntity visitDate = QVisitDateEntity.visitDateEntity;
-		BooleanBuilder builder = new BooleanBuilder();
-
-		if (userId != null) {
-			builder.and(visitExh.userId.eq(userId));
-		}
-		if (gatheringId != null) {
-			builder.and(visitExh.gatheringId.eq(gatheringId));
-		}
 
 		List<Tuple> tuples = query
-			.select(exh, visitDate.visitExhId, visitDate.visitDate.max())
+			.select(exh, visitExh.visitDate.max())
 			.from(visitExh)
 			.leftJoin(exh).on(visitExh.exhId.eq(exh.exhId))
-			.leftJoin(visitDate).on(visitExh.visitExhId.eq(visitDate.visitExhId))
 			.fetchJoin()
-			.where(builder)
-			.groupBy(visitDate.visitExhId)
-			.orderBy(visitDate.visitDate.max().desc())
+			.where(visitExh.userId.eq(userId))
+			.groupBy(visitExh.exhId)
+			.orderBy(visitExh.visitDate.max().desc())
 			.fetch();
 
 		List<Map<String, Object>> result = new ArrayList<>();
@@ -50,8 +43,45 @@ public class VisitExhRepoCustomImpl implements VisitExhRepoCustom {
 		for (Tuple tuple : tuples) {
 			Map<String, Object> row = new HashMap<>();
 			row.put("exhibition", tuple.get(0, ExhEntity.class));
-			row.put("visitExhId", tuple.get(1, Long.class));
-			row.put("visitDate", tuple.get(2, LocalDate.class));
+			row.put("visitDate", tuple.get(1, LocalDate.class));
+			result.add(row);
+		}
+		return result;
+	}
+
+	@Override
+	public List<Map<String, Object>> getVisitInfoForCalendar(CalendarKind kind, Long userId, Long gatherId,
+		LocalDate startDate, LocalDate endDate) {
+		QVisitExhEntity visitExh = QVisitExhEntity.visitExhEntity;
+		QGatheringEntity gathering = QGatheringEntity.gatheringEntity;
+		QExhEntity exh = QExhEntity.exhEntity;
+		BooleanBuilder builder = new BooleanBuilder();
+
+		// userId는 항상 필요
+		// 개인: gatheringId는 항상 null
+		// 모임: gatheringId는 항상 notnull
+		// 전체: gatheringId는 무엇이 들어가든 상관x
+		if (kind == CalendarKind.ALONE) {
+			builder.and(visitExh.gatheringId.isNull());
+		} else if (kind == CalendarKind.GATHER) {
+			builder.and(visitExh.gatheringId.eq(gatherId));
+		}
+
+		List<Tuple> tuples = query.select(visitExh, gathering, exh)
+			.from(visitExh)
+			.leftJoin(gathering).on(visitExh.gatheringId.eq(gathering.gatheringId))
+			.leftJoin(exh).on(visitExh.exhId.eq(exh.exhId))
+			.fetchJoin()
+			.where(visitExh.userId.eq(userId), builder, visitExh.visitDate.goe(startDate),
+				visitExh.visitDate.loe(endDate))
+			.fetch();
+		List<Map<String, Object>> result = new ArrayList<>();
+
+		for (Tuple tuple : tuples) {
+			Map<String, Object> row = new HashMap<>();
+			row.put("visitExh", tuple.get(0, VisitExhEntity.class));
+			row.put("gathering", tuple.get(1, GatheringEntity.class));
+			row.put("exhibition", tuple.get(2, ExhEntity.class));
 			result.add(row);
 		}
 		return result;

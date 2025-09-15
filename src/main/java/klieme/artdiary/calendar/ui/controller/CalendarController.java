@@ -65,9 +65,9 @@ public class CalendarController {
 		// 비즈니스 로직 결과값을 view 형식에 맞춰 list로 반환
 		List<CalendarView> viewList = new ArrayList<>();
 
-		for (CalendarReadUseCase.FindCalendarResult result : results) {
-			viewList.add(CalendarView.builder().result(result).build());
-		}
+		results.forEach((res) -> {
+			viewList.add(CalendarView.builder().result(res).build());
+		});
 		return ResponseEntity.ok(viewList);
 	}
 }

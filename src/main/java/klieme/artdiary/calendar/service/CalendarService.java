@@ -12,20 +12,19 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import klieme.artdiary.calendar.enums.CalendarKind;
-import klieme.artdiary.calendar.info.ScheduleInfo;
+import klieme.artdiary.calendar.dto.ScheduleInfo;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
-import klieme.artdiary.record_data_access.entity.ExhVisitEntity;
-import klieme.artdiary.record_data_access.repository.ExhVisitRepository;
+import klieme.artdiary.record_data_access.entity.VisitExhEntity;
+import klieme.artdiary.record_data_access.repository.VisitExhRepository;
 
 @Service
 public class CalendarService implements CalendarReadUseCase {
-	private final ExhVisitRepository exhVisitRepository;
+	private final VisitExhRepository visitExhRepository;
 
 	@Autowired
-	public CalendarService(ExhVisitRepository exhVisitRepository) {
-		this.exhVisitRepository = exhVisitRepository;
+	public CalendarService(VisitExhRepository visitExhRepository) {
+		this.visitExhRepository = visitExhRepository;
 	}
 
 	@Override
@@ -37,19 +36,9 @@ public class CalendarService implements CalendarReadUseCase {
 		// 날짜 비교 중 월 시작 날짜와 마지막 날짜 구하기
 		LocalDate selectedStartDate = LocalDate.of(query.getYear(), query.getMonth(), 1);
 		LocalDate selectedEndDate = selectedStartDate.withDayOfMonth(selectedStartDate.lengthOfMonth());
-		List<Map<String, Object>> visitInfo;
+		List<Map<String, Object>> visitInfo = visitExhRepository.getVisitInfoForCalendar(query.getKind(), getUserId(),
+			query.getGatherId(), selectedStartDate, selectedEndDate);
 
-		if (query.getKind() == CalendarKind.ALONE) { // 개인일 경우
-			visitInfo = exhVisitRepository.getVisitInfoForCalendar(CalendarKind.ALONE, getUserId(), null,
-				selectedStartDate,
-				selectedEndDate);
-		} else if (query.getKind() == CalendarKind.GATHER) { // 모임일 경우
-			visitInfo = exhVisitRepository.getVisitInfoForCalendar(CalendarKind.GATHER, getUserId(),
-				query.getGatherId(), selectedStartDate, selectedEndDate);
-		} else { // 전체일 경우
-			visitInfo = exhVisitRepository.getVisitInfoForCalendar(CalendarKind.ALL, getUserId(), null,
-				selectedStartDate, selectedEndDate);
-		}
 		dayOfVisitInfo(visitInfo, dayOfScheduleInfos);
 		for (int day = 1; day <= selectedEndDate.getDayOfMonth(); day++) {
 			if (dayOfScheduleInfos.get(day) != null) {
@@ -61,33 +50,33 @@ public class CalendarService implements CalendarReadUseCase {
 		return results;
 	}
 
-	private Long getUserId() {
-		return getCurrentUserEntity().getUserId();
-	}
-
 	private void dayOfVisitInfo(List<Map<String, Object>> visitInfo,
 		HashMap<Integer, List<ScheduleInfo>> dayOfScheduleInfos) {
 		for (Map<String, Object> info : visitInfo) {
-			ExhVisitEntity exhVisit = (ExhVisitEntity)info.get("exhVisit");
+			VisitExhEntity visitExh = (VisitExhEntity)info.get("visitExh");
 			GatheringEntity gathering = (GatheringEntity)info.get("gathering");
-			ExhEntity exh = (ExhEntity)info.get("exhibition");
+			ExhEntity exhibition = (ExhEntity)info.get("exhibition");
 
 			// 날짜 별 전시회 추가
-			int day = exhVisit.getVisitDate().getDayOfMonth();
+			int day = visitExh.getVisitDate().getDayOfMonth();
 
 			dayOfScheduleInfos.computeIfAbsent(day, k -> new ArrayList<>());
 			dayOfScheduleInfos.get(day).add(ScheduleInfo.builder()
-				.exhId(exh.getExhId())
-				.exhName(exh.getExhName())
-				.gallery(exh.getGallery())
-				.exhPeriodStart(changeDateFormat(exh.getExhPeriodStart()))
-				.exhPeriodEnd(changeDateFormat(exh.getExhPeriodEnd()))
-				.poster(exh.getPoster())
-				.visitDate(changeDateFormat(exhVisit.getVisitDate()))
-				.exhVisitId(exhVisit.getExhVisitId())
-				.gatherId(gathering != null ? gathering.getGatherId() : null)
-				.gatherName(gathering != null ? gathering.getGatherName() : null)
+				.exhId(exhibition.getExhId())
+				.exhName(exhibition.getExhName())
+				.gallery(exhibition.getGallery())
+				.startDate(changeDateFormat(exhibition.getExhPeriodStart()))
+				.endDate(changeDateFormat(exhibition.getExhPeriodEnd()))
+				.poster(exhibition.getPoster())
+				.visitDate(changeDateFormat(visitExh.getVisitDate()))
+				.visitExhId(visitExh.getVisitExhId())
+				.gatheringId(gathering != null ? gathering.getGatheringId() : null)
+				.gatheringName(gathering != null ? gathering.getGatheringName() : null)
 				.build());
 		}
+	}
+
+	private Long getUserId() {
+		return getCurrentUserEntity().getUserId();
 	}
 }
