@@ -1,4 +1,4 @@
-package klieme.artdiary.favoriteexh.ui.request_body;
+package klieme.artdiary.like_exh.ui.request_body;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class DeleteFavoriteExhsRequest {
+public class DeleteLikeExhsRequest {
 
 	@NotNull
 	@Valid

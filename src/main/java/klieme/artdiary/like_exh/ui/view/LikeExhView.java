@@ -1,8 +1,8 @@
-package klieme.artdiary.favoriteexh.ui.view;
+package klieme.artdiary.like_exh.ui.view;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import klieme.artdiary.favoriteexh.service.FavoriteExhReadUseCase;
+import klieme.artdiary.like_exh.service.LikeExhReadUseCase;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -10,7 +10,7 @@ import lombok.ToString;
 @Getter
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class FavoriteExhView {
+public class LikeExhView {
 	private final Long exhId;
 	private final String exhName;
 	private final String gallery;
@@ -20,7 +20,7 @@ public class FavoriteExhView {
 	private final Boolean favoriteExh;
 
 	@Builder
-	public FavoriteExhView(FavoriteExhReadUseCase.FindFavoriteExhResult result) {
+	public LikeExhView(LikeExhReadUseCase.FindLikeExhResult result) {
 		this.exhId = result.getExhId();
 		this.exhName = result.getExhName();
 		this.gallery = result.getGallery();

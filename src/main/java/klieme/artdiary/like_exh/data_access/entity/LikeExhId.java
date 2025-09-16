@@ -1,4 +1,4 @@
-package klieme.artdiary.favoriteexh.data_access.entity;
+package klieme.artdiary.like_exh.data_access.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -10,14 +10,14 @@ import lombok.NoArgsConstructor;
 @Data
 @Embeddable
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class FavoriteExhId {
+public class LikeExhId {
 	@Column(name = "user_id", nullable = false)
 	private Long userId;
 	@Column(name = "exh_id", nullable = false)
 	private Long exhId;
 
 	@Builder
-	public FavoriteExhId(Long userId, Long exhId) {
+	public LikeExhId(Long userId, Long exhId) {
 		this.userId = userId;
 		this.exhId = exhId;
 	}

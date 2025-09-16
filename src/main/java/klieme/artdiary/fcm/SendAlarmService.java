@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import klieme.artdiary.common.push_alarm.PushAlarm;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
-import klieme.artdiary.favoriteexh.data_access.repository.FavoriteExhRepository;
+import klieme.artdiary.like_exh.data_access.repository.LikeExhRepository;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
 import klieme.artdiary.record_data_access.repository.ExhVisitRepository;
 import klieme.artdiary.user.data_access.entity.UserEntity;
@@ -20,14 +20,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SendAlarmService {
 
-	private final FavoriteExhRepository favoriteExhRepository;
+	private final LikeExhRepository likeExhRepository;
 	private final ExhVisitRepository exhVisitRepository;
 	private final PushAlarm pushAlarm;
 
 	@Autowired
-	public SendAlarmService(FavoriteExhRepository favoriteExhRepository, ExhVisitRepository exhVisitRepository,
+	public SendAlarmService(LikeExhRepository likeExhRepository, ExhVisitRepository exhVisitRepository,
 		PushAlarm pushAlarm) {
-		this.favoriteExhRepository = favoriteExhRepository;
+		this.likeExhRepository = likeExhRepository;
 		this.exhVisitRepository = exhVisitRepository;
 		this.pushAlarm = pushAlarm;
 	}
@@ -54,7 +54,7 @@ public class SendAlarmService {
 
 	private void aboutFavorite(List<FcmSendDto> fcmSendDtoList) {
 		// 좋아요한 전시회 시작일/마감일 알림
-		List<Map<String, Object>> favoriteInfoList = favoriteExhRepository.getFavoriteExhWithUserAndExh();
+		List<Map<String, Object>> favoriteInfoList = likeExhRepository.getLikeExhWithUserAndExh();
 		LocalDate localDate = LocalDate.now();
 
 		for (Map<String, Object> info : favoriteInfoList) {
@@ -111,7 +111,7 @@ public class SendAlarmService {
 
 			fcmSendDtoList.add(FcmSendDto.builder()
 				.token(user.getAlarmToken())
-				.title("오늘은 \"" + gathering.getGatherName() + "\"이랑 전시회 가는 날")
+				.title("오늘은 \"" + gathering.getGatheringName() + "\"이랑 전시회 가는 날")
 				.body("\"" + exh.getExhName() + "\" 전시회 정보를 보려면 눌러주세요!")
 				.type("exhibition")
 				.exhId(exh.getExhId())
