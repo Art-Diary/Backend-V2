@@ -14,32 +14,26 @@ import org.springframework.transaction.annotation.Transactional;
 import klieme.artdiary.common.api.ArtDiaryException;
 import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
-import klieme.artdiary.exhibition.data_access.repository.ExhRepository;
 import klieme.artdiary.like_exh.data_access.entity.LikeExhEntity;
 import klieme.artdiary.like_exh.data_access.entity.LikeExhId;
 import klieme.artdiary.like_exh.data_access.repository.LikeExhRepository;
 
 @Service
 public class LikeExhService implements LikeExhOperationUseCase, LikeExhReadUseCase {
-	private final ExhRepository exhRepository;
 	private final LikeExhRepository likeExhRepository;
 
 	@Autowired
-	public LikeExhService(ExhRepository exhRepository, LikeExhRepository likeExhRepository) {
-		this.exhRepository = exhRepository;
+	public LikeExhService(LikeExhRepository likeExhRepository) {
 		this.likeExhRepository = likeExhRepository;
 	}
 
 	@Override
 	@Transactional
-	public FindLikeExhResult createLikeExh(LikeExhCreateCommand command) {
-		// 전시회가 있는지 확인
-		ExhEntity exhEntity = exhRepository.findByExhId(command.getExhId()).orElseThrow(() -> new ArtDiaryException(
-			MessageType.NOT_FOUND));
-		// 이미 저장한 전시회인지 확인
+	public void createLikeExh(LikeExhCommand command) {
+		// 이미 좋아요한 전시회인지 확인
 		Optional<LikeExhEntity> savedFavoriteExh = likeExhRepository.findByLikeExhId(LikeExhId.builder()
 			.userId(getUserId())
-			.exhId(exhEntity.getExhId())
+			.exhId(command.getExhId())
 			.build());
 
 		if (savedFavoriteExh.isPresent()) {
@@ -49,12 +43,22 @@ public class LikeExhService implements LikeExhOperationUseCase, LikeExhReadUseCa
 		LikeExhEntity favoriteExh = LikeExhEntity.builder()
 			.likeExhId(LikeExhId.builder()
 				.userId(getUserId())
-				.exhId(exhEntity.getExhId())
+				.exhId(command.getExhId())
 				.build())
 			.initDate(LocalDateTime.now())
 			.build();
 		likeExhRepository.save(favoriteExh);
-		return FindLikeExhResult.findByLikeExh(favoriteExh);
+	}
+
+	@Override
+	public void deleteLikeExh(LikeExhCommand command) {
+		// 좋아요한 전시회인지 확인
+		LikeExhEntity savedFavoriteExh = likeExhRepository.findByLikeExhId(LikeExhId.builder()
+				.userId(getUserId())
+				.exhId(command.getExhId())
+				.build())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		likeExhRepository.delete(savedFavoriteExh);
 	}
 
 	@Override
@@ -70,21 +74,21 @@ public class LikeExhService implements LikeExhOperationUseCase, LikeExhReadUseCa
 		return favorites;
 	}
 
-	@Override
-	@Transactional
-	public void deleteLikeExh(List<LikeExhCreateCommand> commands) {
-
-		for (LikeExhCreateCommand command : commands) {
-
-			LikeExhId likeExhId = LikeExhId.builder()
-				.userId(getUserId())
-				.exhId(command.getExhId())
-				.build();
-			LikeExhEntity fEntity = likeExhRepository.findByLikeExhId(likeExhId)
-				.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-			likeExhRepository.delete(fEntity);
-		}
-	}
+	// @Override
+	// @Transactional
+	// public void deleteLikeExh(List<LikeExhCommand> commands) {
+	//
+	// 	for (LikeExhCommand command : commands) {
+	//
+	// 		LikeExhId likeExhId = LikeExhId.builder()
+	// 			.userId(getUserId())
+	// 			.exhId(command.getExhId())
+	// 			.build();
+	// 		LikeExhEntity fEntity = likeExhRepository.findByLikeExhId(likeExhId)
+	// 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+	// 		likeExhRepository.delete(fEntity);
+	// 	}
+	// }
 
 	private Long getUserId() {
 		return getCurrentUserEntity().getUserId();
