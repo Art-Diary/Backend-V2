@@ -57,13 +57,13 @@ public interface GatheringReadUseCase {
 	@ToString
 	@Builder
 	class FindGatheringResult {
-		private final Long gatherId;
-		private final String gatherName; // 단일 데이터일 때 사용
+		private final Long gatheringId;
+		private final String gatheringName;
 
 		public static FindGatheringResult findByGathering(GatheringEntity entity) {
 			return FindGatheringResult.builder()
-				.gatherId(entity.getGatherId())
-				.gatherName(entity.getGatherName())
+				.gatheringId(entity.getGatheringId())
+				.gatheringName(entity.getGatheringName())
 				.build();
 		}
 	}
@@ -121,7 +121,7 @@ public interface GatheringReadUseCase {
 				.saying(diary.getSaying())
 				.userId(user != null ? user.getUserId() : null)
 				.nickname(user != null ? user.getNickname() : null)
-				.gatherName(gathering.getGatherName())
+				.gatherName(gathering.getGatheringName())
 				.visitDate(changeDateFormat(exhVisit.getVisitDate()))
 				.exhName(exh.getExhName())
 				.exhVisitId(diary.getExhVisitId())

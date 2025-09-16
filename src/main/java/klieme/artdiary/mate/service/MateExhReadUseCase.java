@@ -97,7 +97,7 @@ public interface MateExhReadUseCase {
 				.visitDate(changeDateFormat(exhVisit.getVisitDate()))
 				.exhName(exh.getExhName())
 				.exhVisitId(exhVisit.getExhVisitId())
-				.gatherName(gathering != null ? gathering.getGatherName() : null)
+				.gatherName(gathering != null ? gathering.getGatheringName() : null)
 				.build();
 		}
 	}

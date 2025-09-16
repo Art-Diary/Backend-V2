@@ -50,7 +50,7 @@ public class VisitExhRepoCustomImpl implements VisitExhRepoCustom {
 	}
 
 	@Override
-	public List<Map<String, Object>> getVisitInfoForCalendar(CalendarKind kind, Long userId, Long gatherId,
+	public List<Map<String, Object>> getVisitInfoForCalendar(CalendarKind kind, Long userId, Long gatheringId,
 		LocalDate startDate, LocalDate endDate) {
 		QVisitExhEntity visitExh = QVisitExhEntity.visitExhEntity;
 		QGatheringEntity gathering = QGatheringEntity.gatheringEntity;
@@ -64,7 +64,7 @@ public class VisitExhRepoCustomImpl implements VisitExhRepoCustom {
 		if (kind == CalendarKind.ALONE) {
 			builder.and(visitExh.gatheringId.isNull());
 		} else if (kind == CalendarKind.GATHER) {
-			builder.and(visitExh.gatheringId.eq(gatherId));
+			builder.and(visitExh.gatheringId.eq(gatheringId));
 		}
 
 		List<Tuple> tuples = query.select(visitExh, gathering, exh)

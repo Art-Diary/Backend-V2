@@ -19,7 +19,7 @@ public interface CalendarReadUseCase {
 	@Builder
 	class CalendarFindQuery {
 		private final CalendarKind kind;
-		private final Long gatherId;
+		private final Long gatheringId;
 		private final Integer year;
 		private final Integer month;
 	}

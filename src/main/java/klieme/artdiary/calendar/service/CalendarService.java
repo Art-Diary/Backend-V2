@@ -37,7 +37,7 @@ public class CalendarService implements CalendarReadUseCase {
 		LocalDate selectedStartDate = LocalDate.of(query.getYear(), query.getMonth(), 1);
 		LocalDate selectedEndDate = selectedStartDate.withDayOfMonth(selectedStartDate.lengthOfMonth());
 		List<Map<String, Object>> visitInfo = visitExhRepository.getVisitInfoForCalendar(query.getKind(), getUserId(),
-			query.getGatherId(), selectedStartDate, selectedEndDate);
+			query.getGatheringId(), selectedStartDate, selectedEndDate);
 
 		dayOfVisitInfo(visitInfo, dayOfScheduleInfos);
 		for (int day = 1; day <= selectedEndDate.getDayOfMonth(); day++) {

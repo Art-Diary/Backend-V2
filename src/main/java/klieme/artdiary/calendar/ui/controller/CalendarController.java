@@ -37,14 +37,14 @@ public class CalendarController {
 	@GetMapping("")
 	public ResponseEntity<List<CalendarView>> getExhSchedule(
 		@RequestParam(name = "kind") String kind,
-		@RequestParam(name = "gatherId", required = false) Long gatherId,
+		@RequestParam(name = "gatheringId", required = false) Long gatheringId,
 		@RequestParam(name = "year") Integer year,
 		@RequestParam(name = "month") Integer month
 	) throws IOException {
 		log.info("[모임과 날짜 별 저장된 전시회 조회]");
 		// 요청 파라미터 검증
-		if ((gatherId == null && CalendarKind.valueOfLabel(kind) == CalendarKind.GATHER)
-			|| (gatherId != null && CalendarKind.valueOfLabel(kind) != CalendarKind.GATHER)) {
+		if ((gatheringId == null && CalendarKind.valueOfLabel(kind) == CalendarKind.GATHER)
+			|| (gatheringId != null && CalendarKind.valueOfLabel(kind) != CalendarKind.GATHER)) {
 			throw new ArtDiaryException(MessageType.BAD_REQUEST);
 		}
 		// year와 month가 적절한 값이 들어왔는지 확인
@@ -56,7 +56,7 @@ public class CalendarController {
 		// 파라미터로 받은 데이터 service로 전달하기 위함.
 		var query = CalendarReadUseCase.CalendarFindQuery.builder()
 			.kind(CalendarKind.valueOfLabel(kind))
-			.gatherId(gatherId)
+			.gatheringId(gatheringId)
 			.year(year)
 			.month(month)
 			.build();
