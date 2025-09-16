@@ -9,17 +9,30 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import klieme.artdiary.common.api.ArtDiaryException;
+import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
+import klieme.artdiary.exhibition.data_access.repository.ExhRepository;
+import klieme.artdiary.record_data_access.entity.VisitExhEntity;
 import klieme.artdiary.record_data_access.repository.VisitExhRepository;
+import klieme.artdiary.solo.data_access.entity.UserExhPresenceEntity;
+import klieme.artdiary.solo.data_access.entity.UserExhPresenceId;
+import klieme.artdiary.solo.data_access.repository.UserExhPresenceRepository;
 
 @Service
-public class MyExhService implements MyExhReadUseCase {
+public class MyExhService implements MyExhReadUseCase, MyExhOperationUseCase {
 	private final VisitExhRepository visitExhRepository;
+	private final ExhRepository exhRepository;
+	private final UserExhPresenceRepository userExhPresenceRepository;
 
 	@Autowired
-	public MyExhService(VisitExhRepository visitExhRepository) {
+	public MyExhService(VisitExhRepository visitExhRepository, ExhRepository exhRepository,
+		UserExhPresenceRepository userExhPresenceRepository) {
 		this.visitExhRepository = visitExhRepository;
+		this.exhRepository = exhRepository;
+		this.userExhPresenceRepository = userExhPresenceRepository;
 	}
 
 	@Override
@@ -42,5 +55,44 @@ public class MyExhService implements MyExhReadUseCase {
 
 	private Long getUserId() {
 		return getCurrentUserEntity().getUserId();
+	}
+
+	@Transactional
+	@Override
+	public void createVisitExh(VisitExhCreateCommand command) {
+		Long userId = getUserId();
+
+		// 전시회가 해당 날짜에 진행 중인지 확인
+		ExhEntity storedExhEntity = exhRepository.findByExhId(command.getExhId())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+
+		if (storedExhEntity.getStartDate().isAfter(command.getVisitDate())
+			|| storedExhEntity.getEndDate().isBefore(command.getVisitDate())) {
+			throw new ArtDiaryException(MessageType.FORBIDDEN_DATE);
+		}
+		// visitexh에 추가 - 이미 존재하는지 확인
+		Boolean isExistedVisitExh = visitExhRepository.existsByExhIdAndUserIdAndGatheringIdAndVisitDate(
+			command.getExhId(), userId, null, command.getVisitDate());
+
+		if (!isExistedVisitExh) {
+			VisitExhEntity visitExh = VisitExhEntity.builder()
+				.exhId(command.getExhId())
+				.userId(userId)
+				.gatheringId(null)
+				.visitDate(command.getVisitDate())
+				.build();
+			visitExhRepository.save(visitExh);
+		}
+		// userexhpresence에 추가 - 이미 존재하는지 확인
+		Boolean isPresence = userExhPresenceRepository.existsByUserExhPresenceId(
+			UserExhPresenceId.builder().userId(userId).exhId(command.getExhId()).build());
+
+		if (!isPresence) {
+			UserExhPresenceEntity userExhPresence = UserExhPresenceEntity.builder()
+				.userExhPresenceId(UserExhPresenceId.builder().userId(userId).exhId(command.getExhId()).build())
+				.build();
+
+			userExhPresenceRepository.save(userExhPresence);
+		}
 	}
 }
