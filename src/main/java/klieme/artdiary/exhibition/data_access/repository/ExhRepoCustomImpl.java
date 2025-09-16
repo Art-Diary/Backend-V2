@@ -9,6 +9,7 @@ import java.util.Map;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
@@ -21,7 +22,8 @@ import klieme.artdiary.exhibition.data_access.entity.QExhEntity;
 import klieme.artdiary.exhibition.enums.ExhField;
 import klieme.artdiary.exhibition.enums.ExhPrice;
 import klieme.artdiary.exhibition.enums.ExhState;
-import klieme.artdiary.favoriteexh.data_access.entity.QFavoriteExhEntity;
+import klieme.artdiary.like_exh.data_access.entity.QLikeExhEntity;
+import klieme.artdiary.record_data_access.entity.QVisitExhEntity;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -29,93 +31,46 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 	private final JPAQueryFactory query;
 
 	@Override
-	public List<Map<String, Object>> searchExhList(String searchName, List<ExhField> fieldList, ExhPrice price,
+	public List<Map<String, Object>> searchExhList(String keyword, List<ExhField> fieldList, ExhPrice price,
 		List<ExhState> stateList, LocalDate date, Long userId) {
 		QExhEntity exh = QExhEntity.exhEntity;
-		QFavoriteExhEntity favoriteExh = QFavoriteExhEntity.favoriteExhEntity;
+		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
 		QCategoryEntity category = QCategoryEntity.categoryEntity;
 		QExhCategoryLinkEntity exhCategoryLinkEntity = QExhCategoryLinkEntity.exhCategoryLinkEntity;
 		BooleanBuilder builder = new BooleanBuilder();
 
-		if (fieldList != null) {
-			BooleanBuilder fieldBuilder = new BooleanBuilder();
-
-			for (ExhField field : fieldList) {
-				if (field == ExhField.OTHER) { // 그 외일 경우 처리
-					fieldBuilder.or(category.name.isNull());
-				} else {
-					fieldBuilder.or(category.name.eq(field.label()));
-				}
-			}
-			builder.and(fieldBuilder);
-		}
-		if (price != null) {
-			if (price == ExhPrice.FREE) {
-				builder.and(exh.fee.eq(0));
-			} else if (price == ExhPrice.PAY) {
-				builder.and(exh.fee.ne(0));
-			} else {
-				builder.and(exh.fee.loe(20000)); // fee <= 20000
-			}
-		}
-		if ((stateList != null && !stateList.isEmpty()) || date != null) {
-			LocalDate now = date != null ? date : LocalDate.now();
-
-			if (date != null) {//날짜가 있을 때
-				builder.and(exh.exhPeriodStart.loe(now)); // start <= now
-				builder.and(exh.exhPeriodEnd.goe(now)); // end >= now
-			} else {
-				BooleanBuilder stateListBuilder = new BooleanBuilder();
-
-				//날짜가 없고 state가 있을 때
-				for (ExhState state : stateList) {
-					if (state == ExhState.PROCEED) {
-						BooleanBuilder stateBuilder = new BooleanBuilder();
-						stateBuilder.and(exh.exhPeriodStart.loe(now)); // start <= now
-						stateBuilder.and(exh.exhPeriodEnd.goe(now)); // end >= now
-						stateListBuilder.or(stateBuilder);
-					} else if (state == ExhState.BEFORE_START) {
-						stateListBuilder.or(exh.exhPeriodStart.gt(now)); // start > now
-					} else {
-						stateListBuilder.or(exh.exhPeriodEnd.lt(now)); // end < now
-					}
-				}
-				builder.and(stateListBuilder);
-			}
-
-		}
-
-		if ((fieldList == null || fieldList.isEmpty()) && price == null && (stateList == null || stateList.isEmpty())
-			&& date == null) { //아무 조건도 없을 때
-
-			BooleanBuilder stateBuilder = new BooleanBuilder();
+		// 1) 아무 필터도 없으면 '현재 진행 중'만 보여주기 (기본조건)
+		if (noFilters(fieldList, price, stateList, date)) { //아무 조건도 없을 때
 			LocalDate now = LocalDate.now();
 
-			stateBuilder.and(exh.exhPeriodStart.loe(now)); // start <= now
-			stateBuilder.and(exh.exhPeriodEnd.goe(now)); // end >= now
-			builder.and(stateBuilder);
-
+			builder.and(exh.startDate.loe(now)); // start <= now
+			builder.and(exh.endDate.goe(now)); // end >= now
+		} else {
+			// 2) 개별 필터 조합
+			builder.and(buildFieldPredicate(fieldList, category));
+			builder.and(buildPricePredicate(price, exh));
+			builder.and(buildStatePredicate(stateList, date, exh));
 		}
-		List<Tuple> tuples = query.select(exh,
-				new CaseBuilder()
-					.when(
-						JPAExpressions.selectOne()
-							.from(favoriteExh)
-							.where(favoriteExh.favoriteExhId.exhId.eq(exh.exhId)
-								.and(favoriteExh.favoriteExhId.userId.eq(userId)))
-							.exists()
-					).then(1)
-					.otherwise(0))
+
+		// 유저가 ‘좋아요’ 했는지 여부를 boolean으로 바로 select
+		BooleanExpression likeExists = JPAExpressions
+			.selectOne()
+			.from(likeExh)
+			.where(likeExh.likeExhId.exhId.eq(exh.exhId).and(likeExh.likeExhId.userId.eq(userId)))
+			.exists();
+
+		List<Tuple> tuples = query.select(exh, likeExists)
 			.distinct()
 			.from(exh)
-			.leftJoin(favoriteExh).on(exh.exhId.eq(favoriteExh.favoriteExhId.exhId))
+			.leftJoin(likeExh).on(exh.exhId.eq(likeExh.likeExhId.exhId))
 			.leftJoin(exhCategoryLinkEntity).on(exh.exhId.eq(exhCategoryLinkEntity.exhCategoryLinkId.exhId))
 			.leftJoin(category).on(exhCategoryLinkEntity.exhCategoryLinkId.categoryId.eq(category.categoryId))
 			.fetchJoin()
 			.where(builder)
 			.groupBy(exh.exhId)
-			.orderBy(favoriteExh.favoriteExhId.exhId.count().desc(), exh.exhName.asc())
+			.orderBy(likeExh.likeExhId.exhId.count().desc(), exh.exhName.asc())
 			.fetch();
+
 		List<Map<String, Object>> result = new ArrayList<>();
 
 		for (Tuple tuple : tuples) {
@@ -128,10 +83,100 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 	}
 
 	@Override
+	public List<ExhEntity> getNotVisitedExhListWithDate(LocalDate date, Long userId) {
+		QExhEntity exh = QExhEntity.exhEntity;
+		QVisitExhEntity visitExh = QVisitExhEntity.visitExhEntity;
+		BooleanBuilder builder = new BooleanBuilder();
+
+		builder.or(visitExh.visitDate.ne(date)).or(visitExh.visitDate.isNull());
+
+		return query.select(exh)
+			.distinct()
+			.from(exh)
+			.leftJoin(visitExh).on(exh.exhId.eq(visitExh.exhId))
+			.fetchJoin()
+			.where(exh.startDate.loe(date), exh.endDate.goe(date), builder)
+			.fetch();
+	}
+
+	private BooleanBuilder buildFieldPredicate(List<ExhField> fieldList, QCategoryEntity category) {
+		if (fieldList == null || fieldList.isEmpty())
+			return new BooleanBuilder();
+
+		BooleanBuilder orBuilder = new BooleanBuilder();
+
+		for (ExhField field : fieldList) {
+			if (field == ExhField.OTHER) {
+				// 카테고리 연결이 없는 전시
+				orBuilder.or(category.name.isNull());
+			} else {
+				orBuilder.or(category.name.eq(field.label()));
+			}
+		}
+		return new BooleanBuilder().and(orBuilder);
+	}
+
+	private BooleanBuilder buildPricePredicate(ExhPrice price, QExhEntity exh) {
+		if (price == null)
+			return new BooleanBuilder();
+
+		if (price == ExhPrice.FREE) {
+			return new BooleanBuilder().and(exh.fee.eq(0));
+		} else if (price == ExhPrice.PAY) {
+			return new BooleanBuilder().and(exh.fee.ne(0));
+		} else {
+			// 예: 저가(2만원 이하)
+			return new BooleanBuilder().and(exh.fee.loe(20000));
+		}
+	}
+
+	private BooleanBuilder buildStatePredicate(List<ExhState> stateList, LocalDate date, QExhEntity exh) {
+		// date가 있으면 상태 무시하고 그 날짜에 진행 중인 전시만
+		LocalDate now = (date != null) ? date : LocalDate.now();
+
+		if (date != null) {
+			return new BooleanBuilder()
+				.and(exh.startDate.loe(now)) // start <= now
+				.and(exh.endDate.goe(now)); // end >= now
+		}
+
+		if (stateList == null || stateList.isEmpty())
+			return new BooleanBuilder();
+
+		BooleanBuilder orBuilder = new BooleanBuilder();
+		for (ExhState state : stateList) {
+			switch (state) {
+				case PROCEED:
+					orBuilder.or(
+						new BooleanBuilder()
+							.and(exh.startDate.loe(now)) // start <= now
+							.and(exh.endDate.goe(now)) // end >= now
+					);
+					break;
+				case BEFORE_START:
+					orBuilder.or(exh.startDate.gt(now)); // start > now
+					break;
+				case END:
+				default:
+					orBuilder.or(exh.endDate.lt(now)); // end < now
+					break;
+			}
+		}
+		return new BooleanBuilder().and(orBuilder);
+	}
+
+	private boolean noFilters(List<ExhField> fieldList, ExhPrice price, List<ExhState> stateList, LocalDate date) {
+		return (fieldList == null || fieldList.isEmpty())
+			&& price == null
+			&& (stateList == null || stateList.isEmpty())
+			&& date == null;
+	}
+
+	@Override
 	public List<Map<String, Object>> searchExhListBySearchName(String searchName, Long userId) {
 
 		QExhEntity exh = QExhEntity.exhEntity;
-		QFavoriteExhEntity favoriteExh = QFavoriteExhEntity.favoriteExhEntity;
+		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
 		BooleanBuilder builder = new BooleanBuilder();
 
 		if (searchName != null) {
@@ -167,9 +212,9 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 				new CaseBuilder()
 					.when(
 						JPAExpressions.selectOne()
-							.from(favoriteExh)
-							.where(favoriteExh.favoriteExhId.exhId.eq(exh.exhId)
-								.and(favoriteExh.favoriteExhId.userId.eq(userId)))
+							.from(likeExh)
+							.where(likeExh.likeExhId.exhId.eq(exh.exhId)
+								.and(likeExh.likeExhId.userId.eq(userId)))
 							.exists()
 					).then(1)
 					.otherwise(0))
@@ -220,7 +265,7 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 	@Override
 	public Map<String, Object> getExhDetailInfo(Long userId, Long exhId) {
 		QExhEntity exh = QExhEntity.exhEntity;
-		QFavoriteExhEntity favoriteExh = QFavoriteExhEntity.favoriteExhEntity;
+		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
 		QCategoryEntity category = QCategoryEntity.categoryEntity;
 		QExhCategoryLinkEntity exhCategoryLinkEntity = QExhCategoryLinkEntity.exhCategoryLinkEntity;
 
@@ -228,15 +273,15 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 				new CaseBuilder()
 					.when(
 						JPAExpressions.selectOne()
-							.from(favoriteExh)
-							.where(favoriteExh.favoriteExhId.exhId.eq(exh.exhId)
-								.and(favoriteExh.favoriteExhId.userId.eq(userId)))
+							.from(likeExh)
+							.where(likeExh.likeExhId.exhId.eq(exh.exhId)
+								.and(likeExh.likeExhId.userId.eq(userId)))
 							.exists()
 					).then(1)
 					.otherwise(0))
 			.distinct()
 			.from(exh)
-			.leftJoin(favoriteExh).on(exh.exhId.eq(favoriteExh.favoriteExhId.exhId))
+			.leftJoin(likeExh).on(exh.exhId.eq(likeExh.likeExhId.exhId))
 			.leftJoin(exhCategoryLinkEntity).on(exh.exhId.eq(exhCategoryLinkEntity.exhCategoryLinkId.exhId))
 			.leftJoin(category).on(exhCategoryLinkEntity.exhCategoryLinkId.categoryId.eq(category.categoryId))
 			.fetchJoin()

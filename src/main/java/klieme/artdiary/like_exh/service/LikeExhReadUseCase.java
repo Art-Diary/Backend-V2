@@ -21,14 +21,14 @@ public interface LikeExhReadUseCase {
 		private final Long exhId;
 		private final String exhName;
 		private final String gallery;
-		private final String exhPeriodStart;
-		private final String exhPeriodEnd;
+		private final String startDate;
+		private final String endDate;
 		private final String poster;
-		private final Boolean favoriteExh;
+		private final Boolean isLikeExh;
 
-		public static FindLikeExhResult findByLikeExh(LikeExhEntity favoriteExh) {
+		public static FindLikeExhResult findByLikeExh(LikeExhEntity likeExh) {
 			return FindLikeExhResult.builder()
-				.exhId(favoriteExh.getLikeExhId().getExhId())
+				.exhId(likeExh.getLikeExhId().getExhId())
 				.build();
 		}
 
@@ -37,10 +37,10 @@ public interface LikeExhReadUseCase {
 				.exhId(exh.getExhId())
 				.exhName(exh.getExhName())
 				.gallery(exh.getGallery())
-				.exhPeriodStart(changeDateFormat(exh.getExhPeriodStart()))
-				.exhPeriodEnd(changeDateFormat(exh.getExhPeriodEnd()))
+				.startDate(changeDateFormat(exh.getStartDate()))
+				.endDate(changeDateFormat(exh.getEndDate()))
 				.poster(exh.getPoster())
-				.favoriteExh(true)
+				.isLikeExh(true)
 				.build();
 		}
 	}

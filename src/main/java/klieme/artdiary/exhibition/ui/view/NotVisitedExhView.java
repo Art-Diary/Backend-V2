@@ -1,8 +1,8 @@
-package klieme.artdiary.like_exh.ui.view;
+package klieme.artdiary.exhibition.ui.view;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import klieme.artdiary.like_exh.service.LikeExhReadUseCase;
+import klieme.artdiary.exhibition.service.ExhReadUseCase;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -10,23 +10,21 @@ import lombok.ToString;
 @Getter
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class LikeExhView {
+public class NotVisitedExhView {
 	private final Long exhId;
 	private final String exhName;
 	private final String gallery;
 	private final String startDate;
 	private final String endDate;
 	private final String poster;
-	private final Boolean isLikeExh;
 
 	@Builder
-	public LikeExhView(LikeExhReadUseCase.FindLikeExhResult result) {
+	public NotVisitedExhView(ExhReadUseCase.FindNotVisitedExhResult result) {
 		this.exhId = result.getExhId();
 		this.exhName = result.getExhName();
 		this.gallery = result.getGallery();
 		this.startDate = result.getStartDate();
 		this.endDate = result.getEndDate();
 		this.poster = result.getPoster();
-		this.isLikeExh = result.getIsLikeExh();
 	}
 }

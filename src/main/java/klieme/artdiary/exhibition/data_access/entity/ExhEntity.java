@@ -31,36 +31,37 @@ public class ExhEntity {
 	private String exhName;
 	@Column(nullable = false)
 	private String gallery;
-	@Column(name = "exh_period_start", nullable = false)
-	private LocalDate exhPeriodStart;
-	@Column(name = "exh_period_end", nullable = false)
-	private LocalDate exhPeriodEnd;
+	@Column(name = "start_date", nullable = false)
+	private LocalDate startDate;
+	@Column(name = "end_date", nullable = false)
+	private LocalDate endDate;
 	private String painter;
 	@Column(nullable = false)
 	private Integer fee;
 	private String intro;
-	private String url;
+	@Column(name = "homepage_link")
+	private String homepageLink;
 	@Column(nullable = false)
 	private String poster;
-	@Column(nullable = false)
-	private String art;
+	@Column(name = "art_field", nullable = false)
+	private String artField;
 	@Column(nullable = false)
 	private String source;
 
 	@Builder
-	public ExhEntity(Long exhId, String exhName, String gallery, LocalDate exhPeriodStart, LocalDate exhPeriodEnd,
-		String painter, Integer fee, String intro, String url, String poster, String art, String source) {
+	public ExhEntity(Long exhId, String exhName, String gallery, LocalDate startDate, LocalDate endDate, String painter,
+		Integer fee, String intro, String homepageLink, String poster, String artField, String source) {
 		this.exhId = exhId;
 		this.exhName = exhName;
 		this.gallery = gallery;
-		this.exhPeriodStart = exhPeriodStart;
-		this.exhPeriodEnd = exhPeriodEnd;
+		this.startDate = startDate;
+		this.endDate = endDate;
 		this.painter = painter;
 		this.fee = fee;
 		this.intro = intro;
-		this.url = url;
+		this.homepageLink = homepageLink;
 		this.poster = poster;
-		this.art = art;
+		this.artField = artField;
 		this.source = source;
 	}
 
@@ -69,19 +70,19 @@ public class ExhEntity {
 			this.exhName = exhEntity.getExhName();
 		if (exhEntity.getGallery() != null)
 			this.gallery = exhEntity.getGallery();
-		if (exhEntity.getExhPeriodStart() != null)
-			this.exhPeriodStart = exhEntity.getExhPeriodStart();
-		if (exhEntity.getExhPeriodEnd() != null)
-			this.exhPeriodEnd = exhEntity.getExhPeriodEnd();
+		if (exhEntity.getStartDate() != null)
+			this.startDate = exhEntity.getStartDate();
+		if (exhEntity.getEndDate() != null)
+			this.endDate = exhEntity.getEndDate();
 		this.painter = exhEntity.getPainter();
 		if (exhEntity.getFee() != null)
 			this.fee = exhEntity.getFee();
 		this.intro = exhEntity.getIntro();
-		this.url = exhEntity.getUrl();
+		this.homepageLink = exhEntity.getHomepageLink();
 		if (exhEntity.getPoster() != null)
 			this.poster = exhEntity.getPoster();
-		if (exhEntity.getArt() != null)
-			this.art = exhEntity.getArt();
+		if (exhEntity.getArtField() != null)
+			this.artField = exhEntity.getArtField();
 		if (exhEntity.getSource() != null)
 			this.source = exhEntity.getSource();
 	}
