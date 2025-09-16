@@ -1,22 +1,22 @@
 package klieme.artdiary.like_exh.service;
 
-import java.util.List;
-
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 public interface LikeExhOperationUseCase {
-	LikeExhReadUseCase.FindLikeExhResult createLikeExh(LikeExhCreateCommand command);
+	void createLikeExh(LikeExhCommand command);
 
-	void deleteLikeExh(List<LikeExhCreateCommand> commands);
+	void deleteLikeExh(LikeExhCommand command);
+
+	// void deleteLikeExh(List<LikeExhCommand> commands);
 
 	@EqualsAndHashCode
 	@Builder
 	@Getter
 	@ToString
-	class LikeExhCreateCommand {
+	class LikeExhCommand {
 		private final Long exhId;
 	}
 }

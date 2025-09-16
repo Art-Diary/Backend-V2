@@ -4,24 +4,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import klieme.artdiary.like_exh.service.LikeExhOperationUseCase;
 import klieme.artdiary.like_exh.service.LikeExhReadUseCase;
-import klieme.artdiary.like_exh.ui.request_body.DeleteLikeExhsRequest;
 import klieme.artdiary.like_exh.ui.request_body.LikeExhRequest;
 import klieme.artdiary.like_exh.ui.view.LikeExhView;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping(value = "/favorites")
+@RequestMapping(value = "/like-exhibitions")
 public class LikeExhController {
 	private final LikeExhOperationUseCase likeExhOperationUseCase;
 	private final LikeExhReadUseCase likeExhReadUseCase;
@@ -38,7 +41,7 @@ public class LikeExhController {
 	 * "/favorites"
 	 */
 	@GetMapping("")
-	public ResponseEntity<List<LikeExhView>> getFavoriteExhList() {
+	public ResponseEntity<List<LikeExhView>> getLikeExhList() {
 		log.info("[좋아요 전시회 목록 조회]");
 
 		List<LikeExhReadUseCase.FindLikeExhResult> results = likeExhReadUseCase.getLikeExhs();
@@ -52,33 +55,45 @@ public class LikeExhController {
 		return ResponseEntity.ok(viewResult);
 	}
 
-	@PostMapping("/like")
-	public ResponseEntity<LikeExhView> createFavoriteExh(@Valid @RequestBody LikeExhRequest request) {
+	@PostMapping("")
+	public ResponseEntity<Void> createLikeExh(@Valid @RequestBody LikeExhRequest request) {
 		log.info("[전시회 좋아요 생성 클릭]");
 		// request data 저장
-		var command = LikeExhOperationUseCase.LikeExhCreateCommand.builder()
+		var command = LikeExhOperationUseCase.LikeExhCommand.builder()
 			.exhId(request.getExhId())
 			.build();
 		// 비즈니스 로직 호출
-		LikeExhReadUseCase.FindLikeExhResult result = likeExhOperationUseCase.createLikeExh(command);
-		return ResponseEntity.created(null).body(LikeExhView.builder().result(result).build());
+		likeExhOperationUseCase.createLikeExh(command);
+		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
 
-	@PostMapping("/unlike")
-	public void deleteFavoriteExh(@Valid @RequestBody DeleteLikeExhsRequest deleterequests) {
+	@DeleteMapping("/{exhId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteLikeExh(@PathVariable(name = "exhId") Long exhId) {
 		log.info("[전시회 좋아요 해제 클릭]");
-
-		List<LikeExhOperationUseCase.LikeExhCreateCommand> commands = new ArrayList<>();
-		List<Long> requests = deleterequests.getFavoriteExhsList();
-
-		//List<FavoriteExhRequest> requests=deleterequests.getFavoriteExhsList();
-		for (Long request : requests) {
-			var command = LikeExhOperationUseCase.LikeExhCreateCommand.builder()
-				.exhId(request)
-				.build();
-			commands.add(command);
-		}
-
-		likeExhOperationUseCase.deleteLikeExh(commands);
+		// request data 저장
+		var command = LikeExhOperationUseCase.LikeExhCommand.builder()
+			.exhId(exhId)
+			.build();
+		// 비즈니스 로직 호출
+		likeExhOperationUseCase.deleteLikeExh(command);
 	}
+
+	// @PostMapping("/unlike")
+	// public void deleteLikeExh(@Valid @RequestBody @NotEmpty List<LikeExhRequest> request) {
+	// 	log.info("[전시회 좋아요 해제 클릭]");
+	//
+	// 	List<LikeExhOperationUseCase.LikeExhCommand> commands = new ArrayList<>();
+	// 	// List<Long> requests = deleterequests.getFavoriteExhsList();
+	// 	//
+	// 	// //List<FavoriteExhRequest> requests=deleterequests.getFavoriteExhsList();
+	// 	// for (Long request : requests) {
+	// 	// 	var command = LikeExhOperationUseCase.LikeExhCreateCommand.builder()
+	// 	// 		.exhId(request)
+	// 	// 		.build();
+	// 	// 	commands.add(command);
+	// 	// }
+	// 	//
+	// 	// likeExhOperationUseCase.deleteLikeExh(commands);
+	// }
 }
