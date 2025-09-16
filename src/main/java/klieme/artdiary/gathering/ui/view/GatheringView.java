@@ -11,12 +11,12 @@ import lombok.ToString;
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GatheringView {
-	private final Long gatherId;
-	private final String gatherName;
+	private final Long gatheringId;
+	private final String gatheringName;
 
 	@Builder
 	public GatheringView(GatheringReadUseCase.FindGatheringResult result) {
-		this.gatherId = result.getGatherId();
-		this.gatherName = result.getGatherName();
+		this.gatheringId = result.getGatheringId();
+		this.gatheringName = result.getGatheringName();
 	}
 }

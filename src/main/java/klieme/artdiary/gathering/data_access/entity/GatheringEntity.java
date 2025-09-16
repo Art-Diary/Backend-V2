@@ -23,14 +23,14 @@ import lombok.NoArgsConstructor;
 public class GatheringEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "gather_id", nullable = false)
-	private Long gatherId;
-	@Column(name = "gather_name", nullable = false)
-	private String gatherName;
+	@Column(name = "gathering_id", nullable = false)
+	private Long gatheringId;
+	@Column(name = "gathering_name", nullable = false)
+	private String gatheringName;
 
 	@Builder
-	public GatheringEntity(Long gatherId, String gatherName) {
-		this.gatherId = gatherId;
-		this.gatherName = gatherName;
+	public GatheringEntity(Long gatheringId, String gatheringName) {
+		this.gatheringId = gatheringId;
+		this.gatheringName = gatheringName;
 	}
 }

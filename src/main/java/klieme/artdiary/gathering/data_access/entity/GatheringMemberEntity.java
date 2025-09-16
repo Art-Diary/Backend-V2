@@ -12,17 +12,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "gathering_mate")
+@Table(name = "gathering_member")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @DynamicInsert
 @DynamicUpdate
-public class GatheringMateEntity {
+public class GatheringMemberEntity {
 	@EmbeddedId
-	private GatheringMateId gatheringMateId;
+	private GatheringMemberId gatheringMemberId;
 
 	@Builder
-	public GatheringMateEntity(GatheringMateId gatheringMateId) {
-		this.gatheringMateId = gatheringMateId;
+	public GatheringMemberEntity(GatheringMemberId gatheringMemberId) {
+		this.gatheringMemberId = gatheringMemberId;
 	}
 }

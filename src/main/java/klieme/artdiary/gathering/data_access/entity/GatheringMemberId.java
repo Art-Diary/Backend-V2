@@ -10,15 +10,15 @@ import lombok.NoArgsConstructor;
 @Data
 @Embeddable
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class GatheringMateId {
+public class GatheringMemberId {
 	@Column(name = "user_id", nullable = false)
 	private Long userId;
-	@Column(name = "gather_id", nullable = false)
-	private Long gatherId;
+	@Column(name = "gathering_id", nullable = false)
+	private Long gatheringId;
 
 	@Builder
-	public GatheringMateId(Long userId, Long gatherId) {
+	public GatheringMemberId(Long userId, Long gatheringId) {
 		this.userId = userId;
-		this.gatherId = gatherId;
+		this.gatheringId = gatheringId;
 	}
 }
