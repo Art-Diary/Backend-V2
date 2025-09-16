@@ -78,7 +78,7 @@ public class ExhService implements ExhOperationUseCase, ExhReadUseCase {
 
 		} else {
 			//그룹에서 다녀온 전시회
-			gathering = gatheringRepository.findByGatherId(query.getGatherId())
+			gathering = gatheringRepository.findByGatheringId(query.getGatherId())
 				.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 			entities = exhVisitRepository.getGroupVisitedDateListOfExh(userId,
 				query.getGatherId(),
@@ -108,14 +108,25 @@ public class ExhService implements ExhOperationUseCase, ExhReadUseCase {
 		 * 2. 최근에 시작한 순
 		 * */
 		List<FindExhResult> results = new ArrayList<>();
-		List<Map<String, Object>> infoList = exhRepository.searchExhList(query.getSearchName(), query.getFieldList(),
+		List<Map<String, Object>> infoList = exhRepository.searchExhList(query.getKeyword(), query.getFieldList(),
 			query.getPrice(), query.getStateList(), query.getDate(), getUserId());
 
 		for (Map<String, Object> info : infoList) {
 			ExhEntity exhibition = (ExhEntity)info.get("exhibition");
-			Integer haveFavoriteByUser = (Integer)info.get("haveFavoriteByUser");
+			Boolean haveFavoriteByUser = (Boolean)info.get("haveFavoriteByUser");
 
-			results.add(FindExhResult.findByExhForList(exhibition, haveFavoriteByUser == 1));
+			results.add(FindExhResult.findByExhForList(exhibition, haveFavoriteByUser));
+		}
+		return results;
+	}
+
+	@Override
+	public List<FindNotVisitedExhResult> getNotVisitedExhListWithDate(ExhListFindQuery query) {
+		List<FindNotVisitedExhResult> results = new ArrayList<>();
+		List<ExhEntity> infoList = exhRepository.getNotVisitedExhListWithDate(query.getDate(), getUserId());
+
+		for (ExhEntity exhibition : infoList) {
+			results.add(FindNotVisitedExhResult.findByNotVisitedExh(exhibition));
 		}
 		return results;
 	}
@@ -223,12 +234,12 @@ public class ExhService implements ExhOperationUseCase, ExhReadUseCase {
 		ExhEntity updatedExh = ExhEntity.builder()
 			.exhName(command.getExhName())
 			.gallery(command.getGallery())
-			.exhPeriodStart(command.getExhPeriodStart())
-			.exhPeriodEnd(command.getExhPeriodEnd())
+			.startDate(command.getExhPeriodStart())
+			.endDate(command.getExhPeriodEnd())
 			.painter(command.getPainter())
 			.fee(command.getFee())
 			.intro(command.getIntro())
-			.url(command.getUrl())
+			.homepageLink(command.getUrl())
 			.poster(uploadImageUrl)
 			.source(command.getSource())
 			.build();

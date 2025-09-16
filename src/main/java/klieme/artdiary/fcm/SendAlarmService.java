@@ -63,10 +63,10 @@ public class SendAlarmService {
 			String title = null;
 			String body = null;
 
-			if (localDate.isEqual(exhEntity.getExhPeriodStart())) {
+			if (localDate.isEqual(exhEntity.getStartDate())) {
 				title = "오늘은 좋아요한 전시회 시작일";
 				body = "\"" + exhEntity.getExhName() + "\" 전시회 정보를 보려면 눌러주세요!";
-			} else if (localDate.isEqual(exhEntity.getExhPeriodEnd())) {
+			} else if (localDate.isEqual(exhEntity.getEndDate())) {
 				title = "오늘은 좋아요한 전시회 종료일";
 				body = "\"" + exhEntity.getExhName() + "\" 전시회 정보를 보려면 눌러주세요!";
 			}

@@ -24,6 +24,8 @@ public interface ExhReadUseCase {
 
 	List<FindExhResult> getExhList(ExhListFindQuery query);
 
+	List<FindNotVisitedExhResult> getNotVisitedExhListWithDate(ExhListFindQuery query);
+
 	List<FindExhResult> getExhListBySearchName(String searchName);
 
 	FindExhResult getExhDetailInfo(Long exhId);
@@ -35,7 +37,7 @@ public interface ExhReadUseCase {
 	@ToString
 	@Builder
 	class ExhListFindQuery {
-		private final String searchName;
+		private final String keyword;
 		private final List<ExhField> fieldList;
 		private final ExhPrice price;
 		private final List<ExhState> stateList;
@@ -64,8 +66,8 @@ public interface ExhReadUseCase {
 			List<StoredListOfDate> dates) {
 			return FindStoredDateResult.builder()
 				.exhId(exhId)
-				.gatherId(gathering != null ? gathering.getGatherId() : null)
-				.gatherName(gathering != null ? gathering.getGatherName() : null)
+				.gatherId(gathering != null ? gathering.getGatheringId() : null)
+				.gatherName(gathering != null ? gathering.getGatheringName() : null)
 				.dates(dates)
 				.build();
 		}
@@ -94,14 +96,14 @@ public interface ExhReadUseCase {
 				.exhId(exh.getExhId())
 				.exhName(exh.getExhName())
 				.gallery(exh.getGallery())
-				.exhPeriodStart(changeDateFormat(exh.getExhPeriodStart()))
-				.exhPeriodEnd(changeDateFormat(exh.getExhPeriodEnd()))
+				.exhPeriodStart(changeDateFormat(exh.getStartDate()))
+				.exhPeriodEnd(changeDateFormat(exh.getEndDate()))
 				.poster(exh.getPoster())
 				.favoriteExh(favoriteExh)
 				.painter(exh.getPainter())
 				.fee(exh.getFee())
 				.intro(exh.getIntro())
-				.url(exh.getUrl())
+				.url(exh.getHomepageLink())
 				.art(art)
 				.source(exh.getSource())
 				.build();
@@ -112,10 +114,33 @@ public interface ExhReadUseCase {
 				.exhId(exh.getExhId())
 				.exhName(exh.getExhName())
 				.gallery(exh.getGallery())
-				.exhPeriodStart(changeDateFormat(exh.getExhPeriodStart()))
-				.exhPeriodEnd(changeDateFormat(exh.getExhPeriodEnd()))
+				.exhPeriodStart(changeDateFormat(exh.getStartDate()))
+				.exhPeriodEnd(changeDateFormat(exh.getEndDate()))
 				.poster(exh.getPoster())
 				.favoriteExh(isFavoriteExh)
+				.build();
+		}
+	}
+
+	@Getter
+	@ToString
+	@Builder
+	class FindNotVisitedExhResult {
+		private final Long exhId;
+		private final String exhName;
+		private final String gallery;
+		private final String startDate;
+		private final String endDate;
+		private final String poster;
+
+		public static FindNotVisitedExhResult findByNotVisitedExh(ExhEntity exh) {
+			return FindNotVisitedExhResult.builder()
+				.exhId(exh.getExhId())
+				.exhName(exh.getExhName())
+				.gallery(exh.getGallery())
+				.startDate(changeDateFormat(exh.getStartDate()))
+				.endDate(changeDateFormat(exh.getEndDate()))
+				.poster(exh.getPoster())
 				.build();
 		}
 	}
@@ -157,7 +182,7 @@ public interface ExhReadUseCase {
 				.nickname(user != null ? user.getNickname() : null)
 				.visitDate(changeDateFormat(exhVisit.getVisitDate()))
 				.exhName(exh.getExhName())
-				.gatherName(gather != null ? gather.getGatherName() : null)
+				.gatherName(gather != null ? gather.getGatheringName() : null)
 				.build();
 		}
 	}

@@ -107,8 +107,8 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
 		// 전시회 일정에 맞춰 갈 수 있는지 확인
-		if (storedExhEntity.getExhPeriodStart().isAfter(command.getVisitDate())
-			|| storedExhEntity.getExhPeriodEnd().isBefore(command.getVisitDate())) {
+		if (storedExhEntity.getStartDate().isAfter(command.getVisitDate())
+			|| storedExhEntity.getEndDate().isBefore(command.getVisitDate())) {
 			throw new ArtDiaryException(MessageType.FORBIDDEN_DATE);
 		}
 		// 관람 날짜 추가
