@@ -1,4 +1,4 @@
-package klieme.artdiary.favoriteexh.service;
+package klieme.artdiary.like_exh.service;
 
 import static klieme.artdiary.common.SecurityUtil.*;
 
@@ -15,29 +15,29 @@ import klieme.artdiary.common.api.ArtDiaryException;
 import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.data_access.repository.ExhRepository;
-import klieme.artdiary.favoriteexh.data_access.entity.FavoriteExhEntity;
-import klieme.artdiary.favoriteexh.data_access.entity.FavoriteExhId;
-import klieme.artdiary.favoriteexh.data_access.repository.FavoriteExhRepository;
+import klieme.artdiary.like_exh.data_access.entity.LikeExhEntity;
+import klieme.artdiary.like_exh.data_access.entity.LikeExhId;
+import klieme.artdiary.like_exh.data_access.repository.LikeExhRepository;
 
 @Service
-public class FavoriteExhService implements FavoriteExhOperationUseCase, FavoriteExhReadUseCase {
+public class LikeExhService implements LikeExhOperationUseCase, LikeExhReadUseCase {
 	private final ExhRepository exhRepository;
-	private final FavoriteExhRepository favoriteExhRepository;
+	private final LikeExhRepository likeExhRepository;
 
 	@Autowired
-	public FavoriteExhService(ExhRepository exhRepository, FavoriteExhRepository favoriteExhRepository) {
+	public LikeExhService(ExhRepository exhRepository, LikeExhRepository likeExhRepository) {
 		this.exhRepository = exhRepository;
-		this.favoriteExhRepository = favoriteExhRepository;
+		this.likeExhRepository = likeExhRepository;
 	}
 
 	@Override
 	@Transactional
-	public FindFavoriteExhResult createFavoriteExh(FavoriteExhCreateCommand command) {
+	public FindLikeExhResult createLikeExh(LikeExhCreateCommand command) {
 		// 전시회가 있는지 확인
 		ExhEntity exhEntity = exhRepository.findByExhId(command.getExhId()).orElseThrow(() -> new ArtDiaryException(
 			MessageType.NOT_FOUND));
 		// 이미 저장한 전시회인지 확인
-		Optional<FavoriteExhEntity> savedFavoriteExh = favoriteExhRepository.findByFavoriteExhId(FavoriteExhId.builder()
+		Optional<LikeExhEntity> savedFavoriteExh = likeExhRepository.findByLikeExhId(LikeExhId.builder()
 			.userId(getUserId())
 			.exhId(exhEntity.getExhId())
 			.build());
@@ -46,43 +46,43 @@ public class FavoriteExhService implements FavoriteExhOperationUseCase, Favorite
 			throw new ArtDiaryException(MessageType.CONFLICT);
 		}
 		// 없으면 저장
-		FavoriteExhEntity favoriteExh = FavoriteExhEntity.builder()
-			.favoriteExhId(FavoriteExhId.builder()
+		LikeExhEntity favoriteExh = LikeExhEntity.builder()
+			.likeExhId(LikeExhId.builder()
 				.userId(getUserId())
 				.exhId(exhEntity.getExhId())
 				.build())
 			.initDate(LocalDateTime.now())
 			.build();
-		favoriteExhRepository.save(favoriteExh);
-		return FindFavoriteExhResult.findByFavoriteExh(favoriteExh);
+		likeExhRepository.save(favoriteExh);
+		return FindLikeExhResult.findByLikeExh(favoriteExh);
 	}
 
 	@Override
-	public List<FindFavoriteExhResult> getFavoriteExhs() {
+	public List<FindLikeExhResult> getLikeExhs() {
 
-		List<FindFavoriteExhResult> favorites = new ArrayList<>();
+		List<FindLikeExhResult> favorites = new ArrayList<>();
 		//favoriteExh에서 userId에 해당하는 exhId 알아내기
-		List<ExhEntity> exhEntityList = favoriteExhRepository.getFavoriteExhByUserId(getUserId());
+		List<ExhEntity> exhEntityList = likeExhRepository.getLikeExhByUserId(getUserId());
 
 		for (ExhEntity exh : exhEntityList) {
-			favorites.add(FavoriteExhReadUseCase.FindFavoriteExhResult.findByFavoriteExhDetail(exh));
+			favorites.add(FindLikeExhResult.findByLikeExhDetail(exh));
 		}
 		return favorites;
 	}
 
 	@Override
 	@Transactional
-	public void deleteFavoriteExh(List<FavoriteExhCreateCommand> commands) {
+	public void deleteLikeExh(List<LikeExhCreateCommand> commands) {
 
-		for (FavoriteExhCreateCommand command : commands) {
+		for (LikeExhCreateCommand command : commands) {
 
-			FavoriteExhId favoriteExhId = FavoriteExhId.builder()
+			LikeExhId likeExhId = LikeExhId.builder()
 				.userId(getUserId())
 				.exhId(command.getExhId())
 				.build();
-			FavoriteExhEntity fEntity = favoriteExhRepository.findByFavoriteExhId(favoriteExhId)
+			LikeExhEntity fEntity = likeExhRepository.findByLikeExhId(likeExhId)
 				.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-			favoriteExhRepository.delete(fEntity);
+			likeExhRepository.delete(fEntity);
 		}
 	}
 

@@ -1,4 +1,4 @@
-package klieme.artdiary.favoriteexh.data_access.repository;
+package klieme.artdiary.like_exh.data_access.repository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,28 +10,28 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.data_access.entity.QExhEntity;
-import klieme.artdiary.favoriteexh.data_access.entity.QFavoriteExhEntity;
+import klieme.artdiary.like_exh.data_access.entity.QLikeExhEntity;
 import klieme.artdiary.user.data_access.entity.QUserEntity;
 import klieme.artdiary.user.data_access.entity.UserEntity;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class FavoriteExhRepoCustomImpl implements FavoriteExhRepoCustom {
+public class LikeExhRepoCustomImpl implements LikeExhRepoCustom {
 	private final JPAQueryFactory query;
 
 	@Override
-	public List<Map<String, Object>> getFavoriteExhWithUserAndExh() {
-		QFavoriteExhEntity favoriteExh = QFavoriteExhEntity.favoriteExhEntity;
+	public List<Map<String, Object>> getLikeExhWithUserAndExh() {
+		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
 		QUserEntity user = QUserEntity.userEntity;
 		QExhEntity exh = QExhEntity.exhEntity;
 
 		List<Tuple> tuples = query
 			.select(user, exh)
-			.from(favoriteExh)
-			.leftJoin(user).on(favoriteExh.favoriteExhId.userId.eq(user.userId))
-			.leftJoin(exh).on(favoriteExh.favoriteExhId.exhId.eq(exh.exhId))
+			.from(likeExh)
+			.leftJoin(user).on(likeExh.likeExhId.userId.eq(user.userId))
+			.leftJoin(exh).on(likeExh.likeExhId.exhId.eq(exh.exhId))
 			.fetchJoin()
-			.where(user.alarmToken.isNotNull(), exh.exhId.isNotNull(), user.favoriteExhAlarm.eq(true))
+			.where(user.alarmToken.isNotNull(), exh.exhId.isNotNull())//, user.favoriteExhAlarm.eq(true)
 			.fetch();
 
 		List<Map<String, Object>> result = new ArrayList<>();
@@ -46,17 +46,17 @@ public class FavoriteExhRepoCustomImpl implements FavoriteExhRepoCustom {
 	}
 
 	@Override
-	public List<ExhEntity> getFavoriteExhByUserId(Long userId) {
-		QFavoriteExhEntity favoriteExh = QFavoriteExhEntity.favoriteExhEntity;
+	public List<ExhEntity> getLikeExhByUserId(Long userId) {
+		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
 		QExhEntity exh = QExhEntity.exhEntity;
 
 		return query
 			.select(exh)
-			.from(favoriteExh)
-			.leftJoin(exh).on(favoriteExh.favoriteExhId.exhId.eq(exh.exhId))
+			.from(likeExh)
+			.leftJoin(exh).on(likeExh.likeExhId.exhId.eq(exh.exhId))
 			.fetchJoin()
-			.where(favoriteExh.favoriteExhId.userId.eq(userId))
-			.orderBy(favoriteExh.initDate.desc(), exh.exhName.asc())
+			.where(likeExh.likeExhId.userId.eq(userId))
+			.orderBy(likeExh.initDate.desc(), exh.exhName.asc())
 			.fetch();
 	}
 }

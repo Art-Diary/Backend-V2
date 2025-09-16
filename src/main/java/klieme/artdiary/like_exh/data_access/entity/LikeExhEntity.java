@@ -1,4 +1,4 @@
-package klieme.artdiary.favoriteexh.data_access.entity;
+package klieme.artdiary.like_exh.data_access.entity;
 
 import java.time.LocalDateTime;
 
@@ -15,20 +15,20 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "favorite_exh")
+@Table(name = "like_exh")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @DynamicInsert
 @DynamicUpdate
-public class FavoriteExhEntity {
+public class LikeExhEntity {
 	@EmbeddedId
-	private FavoriteExhId favoriteExhId;
+	private LikeExhId likeExhId;
 	@Column(name = "init_date", nullable = false)
 	private LocalDateTime initDate;
 
 	@Builder
-	public FavoriteExhEntity(FavoriteExhId favoriteExhId, LocalDateTime initDate) {
-		this.favoriteExhId = favoriteExhId;
+	public LikeExhEntity(LikeExhId likeExhId, LocalDateTime initDate) {
+		this.likeExhId = likeExhId;
 		this.initDate = initDate;
 	}
 }

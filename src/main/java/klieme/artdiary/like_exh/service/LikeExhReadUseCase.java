@@ -1,23 +1,23 @@
-package klieme.artdiary.favoriteexh.service;
+package klieme.artdiary.like_exh.service;
 
 import static klieme.artdiary.common.FormatDate.*;
 
 import java.util.List;
 
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
-import klieme.artdiary.favoriteexh.data_access.entity.FavoriteExhEntity;
+import klieme.artdiary.like_exh.data_access.entity.LikeExhEntity;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
-public interface FavoriteExhReadUseCase {
+public interface LikeExhReadUseCase {
 
-	List<FindFavoriteExhResult> getFavoriteExhs();
+	List<FindLikeExhResult> getLikeExhs();
 
 	@Getter
 	@ToString
 	@Builder
-	class FindFavoriteExhResult {
+	class FindLikeExhResult {
 		private final Long exhId;
 		private final String exhName;
 		private final String gallery;
@@ -26,14 +26,14 @@ public interface FavoriteExhReadUseCase {
 		private final String poster;
 		private final Boolean favoriteExh;
 
-		public static FindFavoriteExhResult findByFavoriteExh(FavoriteExhEntity favoriteExh) {
-			return FindFavoriteExhResult.builder()
-				.exhId(favoriteExh.getFavoriteExhId().getExhId())
+		public static FindLikeExhResult findByLikeExh(LikeExhEntity favoriteExh) {
+			return FindLikeExhResult.builder()
+				.exhId(favoriteExh.getLikeExhId().getExhId())
 				.build();
 		}
 
-		public static FindFavoriteExhResult findByFavoriteExhDetail(ExhEntity exh) {
-			return FindFavoriteExhResult.builder()
+		public static FindLikeExhResult findByLikeExhDetail(ExhEntity exh) {
+			return FindLikeExhResult.builder()
 				.exhId(exh.getExhId())
 				.exhName(exh.getExhName())
 				.gallery(exh.getGallery())
