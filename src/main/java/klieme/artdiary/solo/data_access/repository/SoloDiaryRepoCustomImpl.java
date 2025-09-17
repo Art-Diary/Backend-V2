@@ -12,6 +12,8 @@ import klieme.artdiary.solo.data_access.entity.QQuestionEntity;
 import klieme.artdiary.solo.data_access.entity.QSoloDiaryEntity;
 import klieme.artdiary.solo.data_access.entity.QuestionEntity;
 import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
+import klieme.artdiary.user.data_access.entity.QUserEntity;
+import klieme.artdiary.user.data_access.entity.UserEntity;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -38,6 +40,34 @@ public class SoloDiaryRepoCustomImpl implements SoloDiaryRepoCustom {
 			Map<String, Object> row = new HashMap<>();
 			row.put("soloDiary", tuple.get(0, SoloDiaryEntity.class));
 			row.put("question", tuple.get(1, QuestionEntity.class));
+			result.add(row);
+		}
+		return result;
+	}
+
+	@Override
+	public List<Map<String, Object>> getSoloDiaryListAndUserInfo(Long exhId) {
+		QSoloDiaryEntity soloDiary = QSoloDiaryEntity.soloDiaryEntity;
+		QQuestionEntity question = QQuestionEntity.questionEntity;
+		QUserEntity user = QUserEntity.userEntity;
+
+		List<Tuple> tuples = query
+			.select(soloDiary, question, user)
+			.from(soloDiary)
+			.leftJoin(question).on(soloDiary.questionId.eq(question.questionId))
+			.leftJoin(user).on(soloDiary.userId.eq(user.userId))
+			.fetchJoin()
+			.where(soloDiary.exhId.eq(exhId), soloDiary.isPublic.eq(true))
+			.orderBy(soloDiary.writeDate.desc())
+			.fetch();
+
+		List<Map<String, Object>> result = new ArrayList<>();
+
+		for (Tuple tuple : tuples) {
+			Map<String, Object> row = new HashMap<>();
+			row.put("soloDiary", tuple.get(0, SoloDiaryEntity.class));
+			row.put("question", tuple.get(1, QuestionEntity.class));
+			row.put("user", tuple.get(2, UserEntity.class));
 			result.add(row);
 		}
 		return result;

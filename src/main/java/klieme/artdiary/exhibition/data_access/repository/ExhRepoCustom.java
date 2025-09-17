@@ -19,5 +19,5 @@ public interface ExhRepoCustom {
 
 	List<Map<String, Object>> getExhListForExhData();
 
-	Map<String, Object> getExhDetailInfo(Long userId, Long exhId);
+	Map<String, Object> getExhDetailInfoWithIsLike(Long userId, Long exhId);
 }

@@ -52,14 +52,7 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 			builder.and(buildStatePredicate(stateList, date, exh));
 		}
 
-		// 유저가 ‘좋아요’ 했는지 여부를 boolean으로 바로 select
-		BooleanExpression likeExists = JPAExpressions
-			.selectOne()
-			.from(likeExh)
-			.where(likeExh.likeExhId.exhId.eq(exh.exhId).and(likeExh.likeExhId.userId.eq(userId)))
-			.exists();
-
-		List<Tuple> tuples = query.select(exh, likeExists)
+		List<Tuple> tuples = query.select(exh, likeExists(likeExh, exh, userId))
 			.distinct()
 			.from(exh)
 			.leftJoin(likeExh).on(exh.exhId.eq(likeExh.likeExhId.exhId))
@@ -76,7 +69,7 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 		for (Tuple tuple : tuples) {
 			Map<String, Object> row = new HashMap<>();
 			row.put("exhibition", tuple.get(0, ExhEntity.class));
-			row.put("haveFavoriteByUser", tuple.get(1, Boolean.class));
+			row.put("isLikeExh", tuple.get(1, Boolean.class));
 			result.add(row);
 		}
 		return result;
@@ -97,6 +90,116 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 			.fetchJoin()
 			.where(exh.startDate.loe(date), exh.endDate.goe(date), builder)
 			.fetch();
+	}
+
+	@Override
+	public List<Map<String, Object>> searchExhListBySearchName(String searchName, Long userId) {
+
+		QExhEntity exh = QExhEntity.exhEntity;
+		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
+		BooleanBuilder builder = new BooleanBuilder();
+
+		if (searchName != null) {
+			builder.and(exh.exhName.containsIgnoreCase(searchName)
+				.or(exh.gallery.containsIgnoreCase(searchName))
+				.or(exh.painter.containsIgnoreCase(searchName)));
+		}
+
+		OrderSpecifier<Integer> priorityOrder = new CaseBuilder()
+			.when(exh.exhName.containsIgnoreCase(searchName)).then(1) // 1순위: exhName
+			.when(exh.gallery.containsIgnoreCase(searchName)).then(2) // 2순위: gallery
+			.when(exh.painter.containsIgnoreCase(searchName)).then(3) // 3순위: painter
+			.otherwise(4) // 나머지
+			.asc();
+
+		// 필드별 정렬 조건
+		OrderSpecifier<String> exhNameOrder = new CaseBuilder()
+			.when(exh.exhName.containsIgnoreCase(searchName)).then(exh.exhName)
+			.otherwise((String)null) // 다른 조건일 때는 무시
+			.asc();
+
+		OrderSpecifier<String> galleryOrder = new CaseBuilder()
+			.when(exh.gallery.containsIgnoreCase(searchName)).then(exh.gallery)
+			.otherwise((String)null)
+			.asc();
+
+		OrderSpecifier<String> painterOrder = new CaseBuilder()
+			.when(exh.painter.containsIgnoreCase(searchName)).then(exh.painter)
+			.otherwise((String)null)
+			.asc();
+
+		List<Tuple> tuples = query.select(exh, likeExists(likeExh, exh, userId))
+			.distinct()
+			.from(exh)
+			.where(builder)
+			.orderBy(priorityOrder, exhNameOrder, galleryOrder, painterOrder)
+			.fetch();
+
+		List<Map<String, Object>> result = new ArrayList<>();
+
+		for (Tuple tuple : tuples) {
+			Map<String, Object> row = new HashMap<>();
+			row.put("exhibition", tuple.get(0, ExhEntity.class));
+			row.put("haveFavoriteByUser", tuple.get(1, Boolean.class));
+			result.add(row);
+		}
+		return result;
+
+	}
+
+	@Override
+	public List<Map<String, Object>> getExhListForExhData() {
+		QExhEntity exh = QExhEntity.exhEntity;
+		QCategoryEntity category = QCategoryEntity.categoryEntity;
+		QExhCategoryLinkEntity exhCategoryLinkEntity = QExhCategoryLinkEntity.exhCategoryLinkEntity;
+
+		List<Tuple> tuples = query.select(exh, Expressions.stringTemplate("GROUP_CONCAT({0})", category.name))
+			.distinct()
+			.from(exh)
+			.leftJoin(exhCategoryLinkEntity).on(exh.exhId.eq(exhCategoryLinkEntity.exhCategoryLinkId.exhId))
+			.leftJoin(category).on(exhCategoryLinkEntity.exhCategoryLinkId.categoryId.eq(category.categoryId))
+			.fetchJoin()
+			.groupBy(exh.exhId)
+			.orderBy(exh.exhId.desc())
+			.fetch();
+		List<Map<String, Object>> result = new ArrayList<>();
+
+		for (Tuple tuple : tuples) {
+			Map<String, Object> row = new HashMap<>();
+			row.put("exhibition", tuple.get(0, ExhEntity.class));
+			row.put("category", tuple.get(1, String.class));
+			result.add(row);
+		}
+		return result;
+	}
+
+	@Override
+	public Map<String, Object> getExhDetailInfoWithIsLike(Long userId, Long exhId) {
+		QExhEntity exh = QExhEntity.exhEntity;
+		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
+
+		Tuple tuple = query.select(exh, likeExists(likeExh, exh, userId))
+			.from(exh)
+			.where(exh.exhId.eq(exhId))
+			.fetchOne();
+
+		if (tuple == null) {
+			return null;
+		}
+		Map<String, Object> result = new HashMap<>();
+
+		result.put("exhibition", tuple.get(0, ExhEntity.class));
+		result.put("isLikeExh", tuple.get(1, Boolean.class));
+		return result;
+	}
+
+	private BooleanExpression likeExists(QLikeExhEntity likeExh, QExhEntity exh, Long userId) {
+		// 유저가 ‘좋아요’ 했는지 여부를 boolean으로 바로 select
+		return JPAExpressions
+			.selectOne()
+			.from(likeExh)
+			.where(likeExh.likeExhId.exhId.eq(exh.exhId).and(likeExh.likeExhId.userId.eq(userId)))
+			.exists();
 	}
 
 	private BooleanBuilder buildFieldPredicate(List<ExhField> fieldList, QCategoryEntity category) {
@@ -170,132 +273,5 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 			&& price == null
 			&& (stateList == null || stateList.isEmpty())
 			&& date == null;
-	}
-
-	@Override
-	public List<Map<String, Object>> searchExhListBySearchName(String searchName, Long userId) {
-
-		QExhEntity exh = QExhEntity.exhEntity;
-		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
-		BooleanBuilder builder = new BooleanBuilder();
-
-		if (searchName != null) {
-			builder.and(exh.exhName.containsIgnoreCase(searchName)
-				.or(exh.gallery.containsIgnoreCase(searchName))
-				.or(exh.painter.containsIgnoreCase(searchName)));
-		}
-
-		OrderSpecifier<Integer> priorityOrder = new CaseBuilder()
-			.when(exh.exhName.containsIgnoreCase(searchName)).then(1) // 1순위: exhName
-			.when(exh.gallery.containsIgnoreCase(searchName)).then(2) // 2순위: gallery
-			.when(exh.painter.containsIgnoreCase(searchName)).then(3) // 3순위: painter
-			.otherwise(4) // 나머지
-			.asc();
-
-		// 필드별 정렬 조건
-		OrderSpecifier<String> exhNameOrder = new CaseBuilder()
-			.when(exh.exhName.containsIgnoreCase(searchName)).then(exh.exhName)
-			.otherwise((String)null) // 다른 조건일 때는 무시
-			.asc();
-
-		OrderSpecifier<String> galleryOrder = new CaseBuilder()
-			.when(exh.gallery.containsIgnoreCase(searchName)).then(exh.gallery)
-			.otherwise((String)null)
-			.asc();
-
-		OrderSpecifier<String> painterOrder = new CaseBuilder()
-			.when(exh.painter.containsIgnoreCase(searchName)).then(exh.painter)
-			.otherwise((String)null)
-			.asc();
-
-		List<Tuple> tuples = query.select(exh,
-				new CaseBuilder()
-					.when(
-						JPAExpressions.selectOne()
-							.from(likeExh)
-							.where(likeExh.likeExhId.exhId.eq(exh.exhId)
-								.and(likeExh.likeExhId.userId.eq(userId)))
-							.exists()
-					).then(1)
-					.otherwise(0))
-			.distinct()
-			.from(exh)
-			.where(builder)
-			.orderBy(priorityOrder, exhNameOrder, galleryOrder, painterOrder)
-			.fetch();
-
-		List<Map<String, Object>> result = new ArrayList<>();
-
-		for (Tuple tuple : tuples) {
-			Map<String, Object> row = new HashMap<>();
-			row.put("exhibition", tuple.get(0, ExhEntity.class));
-			row.put("haveFavoriteByUser", tuple.get(1, Boolean.class));
-			result.add(row);
-		}
-		return result;
-
-	}
-
-	@Override
-	public List<Map<String, Object>> getExhListForExhData() {
-		QExhEntity exh = QExhEntity.exhEntity;
-		QCategoryEntity category = QCategoryEntity.categoryEntity;
-		QExhCategoryLinkEntity exhCategoryLinkEntity = QExhCategoryLinkEntity.exhCategoryLinkEntity;
-
-		List<Tuple> tuples = query.select(exh, Expressions.stringTemplate("GROUP_CONCAT({0})", category.name))
-			.distinct()
-			.from(exh)
-			.leftJoin(exhCategoryLinkEntity).on(exh.exhId.eq(exhCategoryLinkEntity.exhCategoryLinkId.exhId))
-			.leftJoin(category).on(exhCategoryLinkEntity.exhCategoryLinkId.categoryId.eq(category.categoryId))
-			.fetchJoin()
-			.groupBy(exh.exhId)
-			.orderBy(exh.exhId.desc())
-			.fetch();
-		List<Map<String, Object>> result = new ArrayList<>();
-
-		for (Tuple tuple : tuples) {
-			Map<String, Object> row = new HashMap<>();
-			row.put("exhibition", tuple.get(0, ExhEntity.class));
-			row.put("category", tuple.get(1, String.class));
-			result.add(row);
-		}
-		return result;
-	}
-
-	@Override
-	public Map<String, Object> getExhDetailInfo(Long userId, Long exhId) {
-		QExhEntity exh = QExhEntity.exhEntity;
-		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
-		QCategoryEntity category = QCategoryEntity.categoryEntity;
-		QExhCategoryLinkEntity exhCategoryLinkEntity = QExhCategoryLinkEntity.exhCategoryLinkEntity;
-
-		Tuple tuple = query.select(exh, Expressions.stringTemplate("GROUP_CONCAT({0})", category.name),
-				new CaseBuilder()
-					.when(
-						JPAExpressions.selectOne()
-							.from(likeExh)
-							.where(likeExh.likeExhId.exhId.eq(exh.exhId)
-								.and(likeExh.likeExhId.userId.eq(userId)))
-							.exists()
-					).then(1)
-					.otherwise(0))
-			.distinct()
-			.from(exh)
-			.leftJoin(likeExh).on(exh.exhId.eq(likeExh.likeExhId.exhId))
-			.leftJoin(exhCategoryLinkEntity).on(exh.exhId.eq(exhCategoryLinkEntity.exhCategoryLinkId.exhId))
-			.leftJoin(category).on(exhCategoryLinkEntity.exhCategoryLinkId.categoryId.eq(category.categoryId))
-			.fetchJoin()
-			.where(exh.exhId.eq(exhId))
-			.groupBy(exh.exhId)
-			.orderBy(exh.exhId.desc())
-			.fetchOne();
-		if (tuple != null) {
-			Map<String, Object> result = new HashMap<>();
-
-			result.put("exhibition", tuple.get(0, ExhEntity.class));
-			result.put("category", tuple.get(1, String.class));
-			return result;
-		}
-		return null;
 	}
 }

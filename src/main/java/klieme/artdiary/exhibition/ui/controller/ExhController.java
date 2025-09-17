@@ -20,8 +20,7 @@ import klieme.artdiary.exhibition.enums.ExhField;
 import klieme.artdiary.exhibition.enums.ExhPrice;
 import klieme.artdiary.exhibition.enums.ExhState;
 import klieme.artdiary.exhibition.service.ExhReadUseCase;
-import klieme.artdiary.exhibition.ui.view.ExhView;
-import klieme.artdiary.exhibition.ui.view.NotVisitedExhView;
+import klieme.artdiary.exhibition.ui.view.LiteExhInfoView;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -36,7 +35,7 @@ public class ExhController {
 	}
 
 	@GetMapping("")
-	public ResponseEntity<List<ExhView>> getExhList(
+	public ResponseEntity<List<LiteExhInfoView>> getExhList(
 		@RequestParam(name = "keyword", required = false) String keyword, //검색 내용
 		@RequestParam(name = "field", required = false) String[] fieldList, // 전시 분야
 		@RequestParam(name = "price", required = false) String price, // 가격
@@ -44,7 +43,6 @@ public class ExhController {
 		@RequestParam(name = "date", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date // 날짜
 	) {
 		log.info("[전시회 목록 조회(+전시회 목록 조회, 좋아요 조회)]");
-		System.out.println("date: " + date);
 
 		// string 자료형을 갖는 변수일 경우 빈 문자열인지 확인
 		boolean invalidKeyword = keyword != null && keyword.isBlank();
@@ -88,48 +86,48 @@ public class ExhController {
 			.price(ExhPrice.valueOfLabel(price))
 			.date(date)
 			.build();
-		List<ExhReadUseCase.FindExhResult> exhResults = exhReadUseCase.getExhList(query);
+		List<ExhReadUseCase.FindLiteExhInfoResult> exhResults = exhReadUseCase.getExhList(query);
 		// 비즈니스 로직 결과값을 view 형식에 맞춰 list로 반환
-		List<ExhView> result = new ArrayList<>();
+		List<LiteExhInfoView> result = new ArrayList<>();
 
-		for (ExhReadUseCase.FindExhResult exhResult : exhResults) {
-			result.add(ExhView.builder().result(exhResult).build());
+		for (ExhReadUseCase.FindLiteExhInfoResult exhResult : exhResults) {
+			result.add(LiteExhInfoView.builder().result(exhResult).build());
 		}
 		return ResponseEntity.ok(result);
 	}
 
 	@GetMapping("/date")
-	public ResponseEntity<List<NotVisitedExhView>> getNotVisitedExhListWithDate(
+	public ResponseEntity<List<LiteExhInfoView>> getNotVisitedExhListWithDate(
 		@NotNull @RequestParam(name = "date") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
 		log.info("[특정 날짜에 방문하지 않은 전시회 목록 조회]");
 		System.out.println("date: " + date);
 
 		// 비즈니스 로직 호출
 		var query = ExhReadUseCase.ExhListFindQuery.builder().date(date).build();
-		List<ExhReadUseCase.FindNotVisitedExhResult> exhResults = exhReadUseCase.getNotVisitedExhListWithDate(query);
+		List<ExhReadUseCase.FindLiteExhInfoResult> exhResults = exhReadUseCase.getNotVisitedExhListWithDate(query);
 		// 비즈니스 로직 결과값을 view 형식에 맞춰 list로 반환
-		List<NotVisitedExhView> result = new ArrayList<>();
+		List<LiteExhInfoView> result = new ArrayList<>();
 
-		for (ExhReadUseCase.FindNotVisitedExhResult exhResult : exhResults) {
-			result.add(NotVisitedExhView.builder().result(exhResult).build());
+		for (ExhReadUseCase.FindLiteExhInfoResult exhResult : exhResults) {
+			result.add(LiteExhInfoView.builder().result(exhResult).build());
 		}
 		return ResponseEntity.ok(result);
 	}
 
 	@GetMapping("/search")
-	public ResponseEntity<List<ExhView>> getExhListBySearchName(
+	public ResponseEntity<List<LiteExhInfoView>> getExhListBySearchName(
 		@NotBlank @RequestParam(name = "searchName") String searchName) {
 
 		log.info("[전시회 이름 검색 결과 조회]");
 
 		// 비즈니스 로직 호출
-		List<ExhReadUseCase.FindExhResult> exhResults = exhReadUseCase.getExhListBySearchName(
+		List<ExhReadUseCase.FindLiteExhInfoResult> exhResults = exhReadUseCase.getExhListBySearchName(
 			searchName);
 		// 비즈니스 로직 결과값을 view 형식에 맞춰 list로 반환
-		List<ExhView> result = new ArrayList<>();
+		List<LiteExhInfoView> result = new ArrayList<>();
 
-		for (ExhReadUseCase.FindExhResult exhResult : exhResults) {
-			result.add(ExhView.builder().result(exhResult).build());
+		for (ExhReadUseCase.FindLiteExhInfoResult exhResult : exhResults) {
+			result.add(LiteExhInfoView.builder().result(exhResult).build());
 		}
 		return ResponseEntity.ok(result);
 	}
