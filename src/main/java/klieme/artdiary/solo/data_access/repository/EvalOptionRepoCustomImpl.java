@@ -12,6 +12,7 @@ import klieme.artdiary.solo.data_access.entity.EvalFactorEntity;
 import klieme.artdiary.solo.data_access.entity.EvalOptionEntity;
 import klieme.artdiary.solo.data_access.entity.QEvalFactorEntity;
 import klieme.artdiary.solo.data_access.entity.QEvalOptionEntity;
+import klieme.artdiary.solo.data_access.entity.QExhEvalChoiceEntity;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -40,5 +41,22 @@ public class EvalOptionRepoCustomImpl implements EvalOptionRepoCustom {
 			result.add(row);
 		}
 		return result;
+	}
+
+	@Override
+	public EvalOptionEntity getFactorOptionInfoAboutExh(Integer factorId, Long exhId) {
+		QEvalOptionEntity evalOption = QEvalOptionEntity.evalOptionEntity;
+		QExhEvalChoiceEntity exhEvalChoice = QExhEvalChoiceEntity.exhEvalChoiceEntity;
+
+		List<EvalOptionEntity> entity = query
+			.select(evalOption)
+			.from(evalOption)
+			.leftJoin(exhEvalChoice).on(evalOption.optionId.eq(exhEvalChoice.exhEvalChoiceId.optionId))
+			.fetchJoin()
+			.where(evalOption.factorId.eq(factorId), exhEvalChoice.exhEvalChoiceId.exhId.eq(exhId))
+			.groupBy(evalOption.optionId)
+			.orderBy(evalOption.optionId.count().desc(), evalOption.optionId.asc())
+			.fetch();
+		return entity.isEmpty() ? null : entity.getFirst();
 	}
 }

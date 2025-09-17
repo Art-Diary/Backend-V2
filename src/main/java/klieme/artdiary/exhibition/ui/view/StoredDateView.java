@@ -5,7 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import klieme.artdiary.exhibition.info.StoredListOfDate;
-import klieme.artdiary.exhibition.service.ExhReadUseCase;
+import klieme.artdiary.exhibition.service.ExhDetailReadUseCase;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -20,7 +20,7 @@ public class StoredDateView {
 	private final List<StoredListOfDate> dateInfoList;
 
 	@Builder
-	public StoredDateView(ExhReadUseCase.FindStoredDateResult result) {
+	public StoredDateView(ExhDetailReadUseCase.FindStoredDateResult result) {
 		this.exhId = result.getExhId();
 		this.gatherId = result.getGatherId();
 		this.gatherName = result.getGatherName();

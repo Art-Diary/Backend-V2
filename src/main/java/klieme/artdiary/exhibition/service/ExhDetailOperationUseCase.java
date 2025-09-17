@@ -9,13 +9,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
-public interface ExhOperationUseCase {
+public interface ExhDetailOperationUseCase {
 
-	ExhReadUseCase.FindExhResult updateExhDetailInfo(ExhUpdateCommand command);
+	// ExhDetailReadUseCase.FindExhResult updateExhDetailInfo(ExhUpdateCommand command);
 
-	/*ExhReadUseCase.FindStoredDateResult addSoloExhCreateDummy(
-		klieme.artdiary.exhibitions.service.ExhOperationUseCase.AddSoloExhDummyCreateCommand command);
-*/
 	@EqualsAndHashCode
 	@Builder
 	@Getter
@@ -33,15 +30,5 @@ public interface ExhOperationUseCase {
 		private final MultipartFile poster;
 		private final String art;
 		private final String source;
-	}
-
-	@EqualsAndHashCode
-	@Builder
-	@Getter
-	@ToString
-	class AddSoloExhDummyCreateCommand {
-		private final LocalDate visitDate;
-		private final Long exhId;
-
 	}
 }
