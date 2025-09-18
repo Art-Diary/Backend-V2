@@ -10,8 +10,6 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import klieme.artdiary.common.api.ArtDiaryException;
-import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.common.image.S3ImageTransfer;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.data_access.repository.CategoryRepository;
@@ -19,11 +17,6 @@ import klieme.artdiary.exhibition.data_access.repository.ExhCategoryLinkReposito
 import klieme.artdiary.exhibition.data_access.repository.ExhRepository;
 import klieme.artdiary.exhibition.dto.EvalInfoForExh;
 import klieme.artdiary.exhibition.dto.SoloDiaryListForExh;
-import klieme.artdiary.exhibition.info.StoredListOfDate;
-import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
-import klieme.artdiary.gathering.data_access.repository.GatheringRepository;
-import klieme.artdiary.record_data_access.entity.ExhVisitEntity;
-import klieme.artdiary.record_data_access.repository.ExhVisitRepository;
 import klieme.artdiary.record_data_access.repository.VisitExhRepository;
 import klieme.artdiary.solo.data_access.entity.EvalFactorEntity;
 import klieme.artdiary.solo.data_access.entity.EvalOptionEntity;
@@ -39,8 +32,6 @@ import klieme.artdiary.user.data_access.entity.UserEntity;
 public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperationUseCase {
 
 	private final ExhRepository exhRepository;
-	private final ExhVisitRepository exhVisitRepository;
-	private final GatheringRepository gatheringRepository;
 	private final CategoryRepository categoryRepository;
 	private final ExhCategoryLinkRepository exhCategoryLinkRepository;
 	private final S3ImageTransfer s3ImageTransfer;
@@ -51,15 +42,12 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 	private final VisitExhRepository visitExhRepository;
 
 	@Autowired
-	public ExhDetailService(ExhRepository exhRepository, ExhVisitRepository exhVisitRepository,
-		GatheringRepository gatheringRepository, CategoryRepository categoryRepository,
+	public ExhDetailService(ExhRepository exhRepository, CategoryRepository categoryRepository,
 		ExhCategoryLinkRepository exhCategoryLinkRepository, S3ImageTransfer s3ImageTransfer,
 		SoloDiaryRepository soloDiaryRepository, ExhEvalChoiceRepository exhEvalChoiceRepository,
 		EvalFactorRepository evalFactorRepository, EvalOptionRepository evalOptionRepository,
 		VisitExhRepository visitExhRepository) {
 		this.exhRepository = exhRepository;
-		this.exhVisitRepository = exhVisitRepository;
-		this.gatheringRepository = gatheringRepository;
 		this.categoryRepository = categoryRepository;
 		this.exhCategoryLinkRepository = exhCategoryLinkRepository;
 		this.s3ImageTransfer = s3ImageTransfer;
@@ -141,46 +129,6 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 			results.add(FindSoloDiaryResult.findBySoloDiary(soloDiary, question, user));
 		}
 		return results;
-	}
-
-	@Override
-	public FindStoredDateResult getStoredDateOfExhsByGatherId(StoredDateFindQuery query) {
-
-		//NEW getStoredDateOfExhs
-		// userId: getUserId(), exhId: query.getExhId(), gatherId: query.getGatherId()
-		Long userId = getUserId();
-		List<StoredListOfDate> dateList = new ArrayList<>();
-		List<ExhVisitEntity> entities;
-		GatheringEntity gathering = null;
-
-		// 전시회 아이디 검증
-		exhRepository.findByExhId(query.getExhId()).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-
-		if (query.getGatherId() == null) {
-			//혼자 다녀온 전시회이면 ExhVisit 테이블에서 날짜리스트 가져오기
-			entities = exhVisitRepository.findByUserIdAndExhId(userId,
-				query.getExhId());
-
-		} else {
-			//그룹에서 다녀온 전시회
-			gathering = gatheringRepository.findByGatheringId(query.getGatherId())
-				.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-			entities = exhVisitRepository.getGroupVisitedDateListOfExh(userId,
-				query.getGatherId(),
-				query.getExhId());
-		}
-		for (ExhVisitEntity entity : entities) {
-			if (entity.getVisitDate() == null) { // 날짜 모름일 때는 건너뜀.
-				continue;
-			}
-			dateList.add(StoredListOfDate.builder()
-				.exhVisitId(entity.getExhVisitId())
-				.visitDate(changeDateFormat(entity.getVisitDate()))
-				.build());
-
-		}
-		return FindStoredDateResult.findByStoredDate(query.getExhId(), gathering, dateList);
-
 	}
 
 	// @Transactional

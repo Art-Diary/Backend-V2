@@ -7,13 +7,10 @@ import java.util.List;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.dto.EvalInfoForExh;
 import klieme.artdiary.exhibition.dto.SoloDiaryListForExh;
-import klieme.artdiary.exhibition.info.StoredListOfDate;
-import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
 import klieme.artdiary.solo.data_access.entity.QuestionEntity;
 import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
 import klieme.artdiary.user.data_access.entity.UserEntity;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -21,37 +18,6 @@ public interface ExhDetailReadUseCase {
 	FindExhResult getExhDetailInfo(Long exhId);
 
 	List<FindSoloDiaryResult> getAllOfExhIdDiaries(Long exhId);
-
-	FindStoredDateResult getStoredDateOfExhsByGatherId(StoredDateFindQuery query);
-
-	@EqualsAndHashCode
-	@Getter
-	@ToString
-	@Builder
-	class StoredDateFindQuery {
-		private final Long exhId;
-		private final Long gatherId;
-	}
-
-	@Getter
-	@ToString
-	@Builder
-	class FindStoredDateResult {
-		private final Long exhId;
-		private final Long gatherId; // 개인일 경우엔 null
-		private final String gatherName; // 개인일 경우엔 null
-		private final List<StoredListOfDate> dates;
-
-		public static FindStoredDateResult findByStoredDate(Long exhId, GatheringEntity gathering,
-			List<StoredListOfDate> dates) {
-			return FindStoredDateResult.builder()
-				.exhId(exhId)
-				.gatherId(gathering != null ? gathering.getGatheringId() : null)
-				.gatherName(gathering != null ? gathering.getGatheringName() : null)
-				.dates(dates)
-				.build();
-		}
-	}
 
 	@Getter
 	@ToString
