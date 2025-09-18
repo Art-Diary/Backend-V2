@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
@@ -46,10 +47,17 @@ public class SoloDiaryRepoCustomImpl implements SoloDiaryRepoCustom {
 	}
 
 	@Override
-	public List<Map<String, Object>> getSoloDiaryListAndUserInfo(Long exhId) {
+	public List<Map<String, Object>> getSoloDiaryListAndUserInfo(Long exhId, Long userId) {
 		QSoloDiaryEntity soloDiary = QSoloDiaryEntity.soloDiaryEntity;
 		QQuestionEntity question = QQuestionEntity.questionEntity;
 		QUserEntity user = QUserEntity.userEntity;
+		BooleanBuilder builder = new BooleanBuilder();
+		BooleanBuilder privateBuilder = new BooleanBuilder();
+
+		builder.and(soloDiary.isPublic.eq(false));
+		builder.and(soloDiary.userId.eq(userId));
+		privateBuilder.or(builder);
+		privateBuilder.or(soloDiary.isPublic.eq(true));
 
 		List<Tuple> tuples = query
 			.select(soloDiary, question, user)
@@ -57,7 +65,7 @@ public class SoloDiaryRepoCustomImpl implements SoloDiaryRepoCustom {
 			.leftJoin(question).on(soloDiary.questionId.eq(question.questionId))
 			.leftJoin(user).on(soloDiary.userId.eq(user.userId))
 			.fetchJoin()
-			.where(soloDiary.exhId.eq(exhId), soloDiary.isPublic.eq(true))
+			.where(soloDiary.exhId.eq(exhId), privateBuilder)
 			.orderBy(soloDiary.writeDate.desc())
 			.fetch();
 

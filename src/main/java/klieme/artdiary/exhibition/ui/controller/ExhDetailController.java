@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import klieme.artdiary.exhibition.service.ExhDetailReadUseCase;
 import klieme.artdiary.exhibition.service.ExhDetailOperationUseCase;
-import klieme.artdiary.exhibition.ui.view.AllDiaryOfExhIdView;
+import klieme.artdiary.exhibition.ui.view.SoloDiaryOfExhView;
 import klieme.artdiary.exhibition.ui.view.ExhDetailView;
 import klieme.artdiary.exhibition.ui.view.StoredDateView;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +39,20 @@ public class ExhDetailController {
 		ExhDetailReadUseCase.FindExhResult result = exhDetailReadUseCase.getExhDetailInfo(exhId);
 
 		return ResponseEntity.ok(ExhDetailView.builder().result(result).build());
+	}
 
+	@GetMapping("/diaries")
+	public ResponseEntity<List<SoloDiaryOfExhView>> getAllOfExhIdDiaries(@PathVariable(name = "exhId") Long exhId) {
+		log.info("[전시회 상세 정보 중 기록 조회]");
+
+		List<ExhDetailReadUseCase.FindSoloDiaryResult> diaryResults = exhDetailReadUseCase.getAllOfExhIdDiaries(exhId);
+
+		List<SoloDiaryOfExhView> result = new ArrayList<>();
+
+		for (ExhDetailReadUseCase.FindSoloDiaryResult diaryResult : diaryResults) {
+			result.add(SoloDiaryOfExhView.builder().result(diaryResult).build());
+		}
+		return ResponseEntity.ok(result);
 	}
 
 	@GetMapping("/date") // ResponseEntity<>
@@ -55,21 +68,6 @@ public class ExhDetailController {
 		ExhDetailReadUseCase.FindStoredDateResult result = exhDetailReadUseCase.getStoredDateOfExhsByGatherId(query);
 
 		return ResponseEntity.ok(StoredDateView.builder().result(result).build());
-	}
-
-	@GetMapping("/diaries")
-	public ResponseEntity<List<AllDiaryOfExhIdView>> getAllOfExhIdDiaries(@PathVariable(name = "exhId") Long exhId) {
-		log.info("[전시회 상세 정보 중 기록 조회]");
-
-		List<ExhDetailReadUseCase.FindDiaryResult> diaryResults = exhDetailReadUseCase.getAllOfExhIdDiaries(exhId);
-
-		List<AllDiaryOfExhIdView> result = new ArrayList<>();
-
-		for (ExhDetailReadUseCase.FindDiaryResult diaryResult : diaryResults) {
-			result.add(AllDiaryOfExhIdView.builder().result(diaryResult).build());
-		}
-		return ResponseEntity.ok(result);
-
 	}
 
 	// @PatchMapping("")
