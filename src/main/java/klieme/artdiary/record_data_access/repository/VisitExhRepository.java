@@ -11,4 +11,6 @@ import klieme.artdiary.record_data_access.entity.VisitExhEntity;
 public interface VisitExhRepository extends JpaRepository<VisitExhEntity, Long>, VisitExhRepoCustom {
 	Boolean existsByExhIdAndUserIdAndGatheringIdAndVisitDate(Long exhId, Long userId, Long gatheringId,
 		LocalDate visitDate);
+
+	Boolean existsByExhIdAndUserId(Long exhId, Long userId);
 }
