@@ -16,4 +16,5 @@ public class SoloDiaryListForExh {
 	private final Long userId;
 	private final String nickname;
 	private final String profile;
+	private final Boolean isPublic;
 }

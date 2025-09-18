@@ -12,4 +12,6 @@ import klieme.artdiary.solo.data_access.entity.ExhEvalChoiceId;
 public interface ExhEvalChoiceRepository
 	extends JpaRepository<ExhEvalChoiceEntity, ExhEvalChoiceId>, ExhEvalChoiceRepoCustom {
 	List<ExhEvalChoiceEntity> findByExhEvalChoiceIdUserIdAndExhEvalChoiceIdExhId(Long userId, Long exhId);
+
+	Boolean existsByExhEvalChoiceIdUserIdAndExhEvalChoiceIdExhId(Long userId, Long exhId);
 }

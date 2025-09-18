@@ -28,6 +28,8 @@ public class ExhDetailView {
 	private final String source;
 	private final Boolean isLikeExh;
 	private final Long soloDiaryCount;
+	private final Boolean isEvalFinished;
+	private final Boolean isVisitedExh;
 	private final List<SoloDiaryListForExh> soloDiaries;
 	private final List<EvalInfoForExh> evalInfos;
 
@@ -46,6 +48,8 @@ public class ExhDetailView {
 		this.source = result.getSource();
 		this.isLikeExh = result.getIsLikeExh();
 		this.soloDiaryCount = result.getSoloDiaryCount();
+		this.isEvalFinished = result.getIsEvalFinished();
+		this.isVisitedExh = result.getIsVisitedExh();
 		this.soloDiaries = result.getSoloDiaries();
 		this.evalInfos = result.getEvalInfos();
 	}

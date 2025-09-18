@@ -22,10 +22,9 @@ import klieme.artdiary.exhibition.dto.SoloDiaryListForExh;
 import klieme.artdiary.exhibition.info.StoredListOfDate;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
 import klieme.artdiary.gathering.data_access.repository.GatheringRepository;
-import klieme.artdiary.record_data_access.entity.DiaryEntity;
 import klieme.artdiary.record_data_access.entity.ExhVisitEntity;
-import klieme.artdiary.record_data_access.repository.DiaryRepository;
 import klieme.artdiary.record_data_access.repository.ExhVisitRepository;
+import klieme.artdiary.record_data_access.repository.VisitExhRepository;
 import klieme.artdiary.solo.data_access.entity.EvalFactorEntity;
 import klieme.artdiary.solo.data_access.entity.EvalOptionEntity;
 import klieme.artdiary.solo.data_access.entity.QuestionEntity;
@@ -41,7 +40,6 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 
 	private final ExhRepository exhRepository;
 	private final ExhVisitRepository exhVisitRepository;
-	private final DiaryRepository diaryRepository;
 	private final GatheringRepository gatheringRepository;
 	private final CategoryRepository categoryRepository;
 	private final ExhCategoryLinkRepository exhCategoryLinkRepository;
@@ -50,16 +48,17 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 	private final ExhEvalChoiceRepository exhEvalChoiceRepository;
 	private final EvalFactorRepository evalFactorRepository;
 	private final EvalOptionRepository evalOptionRepository;
+	private final VisitExhRepository visitExhRepository;
 
 	@Autowired
 	public ExhDetailService(ExhRepository exhRepository, ExhVisitRepository exhVisitRepository,
-		DiaryRepository diaryRepository, GatheringRepository gatheringRepository, CategoryRepository categoryRepository,
+		GatheringRepository gatheringRepository, CategoryRepository categoryRepository,
 		ExhCategoryLinkRepository exhCategoryLinkRepository, S3ImageTransfer s3ImageTransfer,
 		SoloDiaryRepository soloDiaryRepository, ExhEvalChoiceRepository exhEvalChoiceRepository,
-		EvalFactorRepository evalFactorRepository, EvalOptionRepository evalOptionRepository) {
+		EvalFactorRepository evalFactorRepository, EvalOptionRepository evalOptionRepository,
+		VisitExhRepository visitExhRepository) {
 		this.exhRepository = exhRepository;
 		this.exhVisitRepository = exhVisitRepository;
-		this.diaryRepository = diaryRepository;
 		this.gatheringRepository = gatheringRepository;
 		this.categoryRepository = categoryRepository;
 		this.exhCategoryLinkRepository = exhCategoryLinkRepository;
@@ -68,16 +67,18 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 		this.exhEvalChoiceRepository = exhEvalChoiceRepository;
 		this.evalFactorRepository = evalFactorRepository;
 		this.evalOptionRepository = evalOptionRepository;
+		this.visitExhRepository = visitExhRepository;
 	}
 
 	@Override
 	public FindExhResult getExhDetailInfo(Long exhId) {
+		Long userId = getUserId();
 		// 관심 전시회 여부를 포함한 전시회 세부 정보 조회 -> exh entity
-		Map<String, Object> exhDetailInfo = exhRepository.getExhDetailInfoWithIsLike(getUserId(), exhId);
+		Map<String, Object> exhDetailInfo = exhRepository.getExhDetailInfoWithIsLike(userId, exhId);
 		ExhEntity exh = (ExhEntity)exhDetailInfo.get("exhibition");
 		Boolean isLikeExh = (Boolean)exhDetailInfo.get("isLikeExh");
 		// 기록 3개 포함 + 기록 총 개수도 필요 -> solo diary
-		List<Map<String, Object>> soloDiaryList = soloDiaryRepository.getSoloDiaryListAndUserInfo(exhId);
+		List<Map<String, Object>> soloDiaryList = soloDiaryRepository.getSoloDiaryListAndUserInfo(exhId, userId);
 		int size = Math.min(soloDiaryList.size(), 3);
 		List<Map<String, Object>> firstThree = soloDiaryList.subList(0, size);
 		List<SoloDiaryListForExh> soloDiaries = new ArrayList<>();
@@ -96,6 +97,7 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 				.userId(user.getUserId())
 				.nickname(user.getNickname())
 				.profile(user.getProfile())
+				.isPublic(soloDiary.getIsPublic())
 				.build());
 		}
 		// 평가도 필요 -> exh eval (각 항목 당 가장 많이 선택한 옵션 조회)
@@ -118,7 +120,27 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 				.optionIcon(option.getIcon())
 				.build());
 		}
-		return FindExhResult.findByExh(exh, isLikeExh, (long)soloDiaryList.size(), soloDiaries, evalInfos);
+		Boolean isEvalFinished = exhEvalChoiceRepository.existsByExhEvalChoiceIdUserIdAndExhEvalChoiceIdExhId(userId,
+			exhId);
+		Boolean isVisitedExh = visitExhRepository.existsByExhIdAndUserId(exhId, userId);
+
+		return FindExhResult.findByExh(exh, isLikeExh, (long)soloDiaryList.size(), isEvalFinished, isVisitedExh,
+			soloDiaries, evalInfos);
+	}
+
+	@Override
+	public List<FindSoloDiaryResult> getAllOfExhIdDiaries(Long exhId) {
+		List<FindSoloDiaryResult> results = new ArrayList<>();
+		List<Map<String, Object>> diaryList = soloDiaryRepository.getSoloDiaryListAndUserInfo(exhId, getUserId());
+
+		for (Map<String, Object> item : diaryList) {
+			SoloDiaryEntity soloDiary = (SoloDiaryEntity)item.get("soloDiary");
+			QuestionEntity question = (QuestionEntity)item.get("question");
+			UserEntity user = (UserEntity)item.get("user");
+
+			results.add(FindSoloDiaryResult.findBySoloDiary(soloDiary, question, user));
+		}
+		return results;
 	}
 
 	@Override
@@ -159,24 +181,6 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 		}
 		return FindStoredDateResult.findByStoredDate(query.getExhId(), gathering, dateList);
 
-	}
-
-	@Override
-	public List<FindDiaryResult> getAllOfExhIdDiaries(Long exhId) {
-
-		List<FindDiaryResult> results = new ArrayList<>();
-		List<Map<String, Object>> diaryList = diaryRepository.getAllOfDiaries(getUserId(), exhId);
-
-		for (Map<String, Object> item : diaryList) {
-			DiaryEntity diary = (DiaryEntity)item.get("diaryEntity");
-			ExhVisitEntity exhVisit = (ExhVisitEntity)item.get("exhVisitEntity");
-			GatheringEntity gathering = (GatheringEntity)item.get("gatheringEntity");
-			UserEntity user = (UserEntity)item.get("userEntity");
-			ExhEntity exh = (ExhEntity)item.get("exhEntity");
-
-			results.add(FindDiaryResult.findStoredDiary(diary, exhVisit, user, exh, gathering));
-		}
-		return results;
 	}
 
 	// @Transactional
