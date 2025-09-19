@@ -14,13 +14,13 @@ public class MateView {
 	private final Long userId;
 	private final String nickname;
 	private final String profile;
-	private final String favoriteArt;
+	private final String artField;
 
 	@Builder
 	public MateView(MateReadUseCase.FindMateResult result) {
 		this.userId = result.getUserId();
 		this.nickname = result.getNickname();
 		this.profile = result.getProfile();
-		this.favoriteArt = result.getFavoriteArt();
+		this.artField = result.getArtField();
 	}
 }

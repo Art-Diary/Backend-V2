@@ -9,13 +9,13 @@ import lombok.ToString;
 
 public interface MateOperationUseCase {
 
-	List<MateReadUseCase.FindMateResult> addMyMateCreate(AddMyMateCreateDummy dummy);
+	List<MateReadUseCase.FindMateResult> addNewMate(MateCreateCommand command);
 
 	@EqualsAndHashCode
 	@Builder
 	@Getter
 	@ToString
-	class AddMyMateCreateDummy {
+	class MateCreateCommand {
 		private final Long toUserId;
 	}
 }

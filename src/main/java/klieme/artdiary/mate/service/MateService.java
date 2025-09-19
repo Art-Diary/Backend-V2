@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -37,7 +36,7 @@ public class MateService implements MateReadUseCase, MateOperationUseCase {
 		List<MateReadUseCase.FindMateResult> results = new ArrayList<>();
 		// 각 toUserId로 회원 정보 조회
 		for (UserEntity user : mateInfoList) {
-			results.add(FindMateResult.findByGatheringExhs(user));
+			results.add(FindMateResult.findByMate(user));
 		}
 		return results;
 	}
@@ -58,9 +57,9 @@ public class MateService implements MateReadUseCase, MateOperationUseCase {
 				continue;
 			}
 			if (isMate) {
-				alreadyMate.add(FindMateResult.findByGatheringExhs(userEntity));
+				alreadyMate.add(FindMateResult.findByMate(userEntity));
 			} else {
-				notMate.add(FindMateResult.findByGatheringExhs(userEntity));
+				notMate.add(FindMateResult.findByMate(userEntity));
 			}
 		}
 		return FindIsMateResult.findByGatheringMate(alreadyMate, notMate);
@@ -68,25 +67,24 @@ public class MateService implements MateReadUseCase, MateOperationUseCase {
 
 	@Override
 	@Transactional
-	public List<MateReadUseCase.FindMateResult> addMyMateCreate(MateOperationUseCase.AddMyMateCreateDummy dummy) {
-
+	public List<MateReadUseCase.FindMateResult> addNewMate(MateCreateCommand command) {
 		//user에 있는지 확인
-		UserEntity checkEntity = userRepository.findByUserId(dummy.getToUserId())
+		userRepository.findByUserId(command.getToUserId())
 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
 		//나인지 확인
-		if (getUserId().equals(dummy.getToUserId())) {
+		if (getUserId().equals(command.getToUserId())) {
 			throw new ArtDiaryException(MessageType.FORBIDDEN);
 		}
 		//exh_mate에서 이미 저장한 친구인지 확인
-		Optional<MateEntity> entity = mateRepository.findByFromUserIdAndToUserId(getUserId(), dummy.getToUserId());
+		Boolean isAlreadyMate = mateRepository.existsByFromUserIdAndToUserId(getUserId(), command.getToUserId());
 
-		if (entity.isPresent()) {
+		if (isAlreadyMate) {
 			throw new ArtDiaryException(MessageType.CONFLICT);
 		}
 		//exh_mate에 저장
 		MateEntity newMate = MateEntity.builder()
-			.toUserId(dummy.getToUserId())
+			.toUserId(command.getToUserId())
 			.fromUserId(getUserId())
 			.build();
 
@@ -95,7 +93,7 @@ public class MateService implements MateReadUseCase, MateOperationUseCase {
 		List<UserEntity> allMateEntities = mateRepository.getMyMateListByFromUserId(getUserId());
 		List<MateReadUseCase.FindMateResult> results = new ArrayList<>();
 		for (UserEntity allMateEntity : allMateEntities) {
-			results.add(FindMateResult.findByGatheringExhs(allMateEntity));
+			results.add(FindMateResult.findByMate(allMateEntity));
 		}
 		return results;
 	}

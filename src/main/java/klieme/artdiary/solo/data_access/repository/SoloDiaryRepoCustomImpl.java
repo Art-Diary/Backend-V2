@@ -22,16 +22,20 @@ public class SoloDiaryRepoCustomImpl implements SoloDiaryRepoCustom {
 	private final JPAQueryFactory query;
 
 	@Override
-	public List<Map<String, Object>> getSoloDiaryListWithQuestion(Long exhId, Long userId) {
+	public List<Map<String, Object>> getSoloDiaryListWithQuestion(Long exhId, Long userId, Boolean isForMate) {
 		QSoloDiaryEntity soloDiary = QSoloDiaryEntity.soloDiaryEntity;
 		QQuestionEntity question = QQuestionEntity.questionEntity;
+		BooleanBuilder builder = new BooleanBuilder();
 
+		if (isForMate) {
+			builder.and(soloDiary.isPublic.eq(true));
+		}
 		List<Tuple> tuples = query
 			.select(soloDiary, question)
 			.from(soloDiary)
 			.leftJoin(question).on(soloDiary.questionId.eq(question.questionId))
 			.fetchJoin()
-			.where(soloDiary.exhId.eq(exhId), soloDiary.userId.eq(userId))
+			.where(soloDiary.exhId.eq(exhId), soloDiary.userId.eq(userId), builder)
 			.orderBy(soloDiary.writeDate.desc())
 			.fetch();
 

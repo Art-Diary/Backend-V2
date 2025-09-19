@@ -59,11 +59,11 @@ public class MateController {
 	public ResponseEntity<List<MateView>> addNewMate(@Valid @RequestBody MateRequest mateRequest) {
 		log.info("[전시 메이트 추가]");
 
-		var command = MateOperationUseCase.AddMyMateCreateDummy.builder()
+		var command = MateOperationUseCase.MateCreateCommand.builder()
 			.toUserId(mateRequest.getUserId())
 			.build();
 
-		List<MateReadUseCase.FindMateResult> results = mateOperationUseCase.addMyMateCreate(command);
+		List<MateReadUseCase.FindMateResult> results = mateOperationUseCase.addNewMate(command);
 
 		List<MateView> viewResult = new ArrayList<>();
 

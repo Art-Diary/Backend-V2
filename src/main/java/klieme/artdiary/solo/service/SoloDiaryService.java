@@ -69,7 +69,7 @@ public class SoloDiaryService implements SoloDiaryOperationUseCase, SoloDiaryRea
 
 		// soloDiary에서 exhid와 userid에 해당하는 것 모두 가져오기 - question 필요
 		List<Map<String, Object>> diaryListWithQuestion = soloDiaryRepository.getSoloDiaryListWithQuestion(exhId,
-			userId);
+			userId, false);
 
 		for (Map<String, Object> info : diaryListWithQuestion) {
 			SoloDiaryEntity soloDiary = (SoloDiaryEntity)info.get("soloDiary");
