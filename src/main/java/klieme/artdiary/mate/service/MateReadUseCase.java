@@ -35,14 +35,14 @@ public interface MateReadUseCase {
 		private final Long userId;
 		private final String nickname;
 		private final String profile;
-		private final String favoriteArt;
+		private final String artField;
 
-		public static FindMateResult findByGatheringExhs(UserEntity user) {
+		public static FindMateResult findByMate(UserEntity user) {
 			return FindMateResult.builder()
 				.userId(user.getUserId())
 				.nickname(user.getNickname())
 				.profile(user.getProfile())
-				.favoriteArt(user.getFavoriteArt())
+				.artField(user.getArtField())
 				.build();
 		}
 	}

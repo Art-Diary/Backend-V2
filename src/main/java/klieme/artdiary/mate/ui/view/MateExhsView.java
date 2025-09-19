@@ -13,14 +13,16 @@ import lombok.ToString;
 public class MateExhsView {
 	private final Long exhId;
 	private final String exhName;
+	private final String gallery;
 	private final String poster;
-	private final Double rate;
+	private final String visitDate;
 
 	@Builder
 	public MateExhsView(MateExhReadUseCase.FindMateExhsResult result) {
 		this.exhId = result.getExhId();
 		this.exhName = result.getExhName();
+		this.gallery = result.getGallery();
 		this.poster = result.getPoster();
-		this.rate = result.getRate();
+		this.visitDate = result.getVisitDate();
 	}
 }

@@ -159,7 +159,7 @@ public interface GatheringReadUseCase {
 				.userId(user.getUserId())
 				.nickname(user.getNickname())
 				.profile(user.getProfile())
-				.favoriteArt(user.getFavoriteArt())
+				.favoriteArt(user.getArtField())
 				.build();
 		}
 	}

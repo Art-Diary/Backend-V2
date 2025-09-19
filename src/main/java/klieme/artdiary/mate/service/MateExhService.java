@@ -2,8 +2,8 @@ package klieme.artdiary.mate.service;
 
 import static klieme.artdiary.common.SecurityUtil.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -13,106 +13,98 @@ import org.springframework.stereotype.Service;
 import klieme.artdiary.common.api.ArtDiaryException;
 import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
-import klieme.artdiary.exhibition.data_access.repository.ExhRepository;
-import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
 import klieme.artdiary.mate.data_access.repository.MateRepository;
-// import klieme.artdiary.record_data_access.dto.DiaryResponse;
-import klieme.artdiary.record_data_access.entity.DiaryEntity;
-import klieme.artdiary.record_data_access.entity.ExhVisitEntity;
-import klieme.artdiary.record_data_access.repository.DiaryRepository;
-import klieme.artdiary.user.data_access.entity.UserEntity;
-import klieme.artdiary.user.data_access.repository.UserRepository;
+import klieme.artdiary.record_data_access.repository.VisitExhRepository;
+import klieme.artdiary.solo.data_access.entity.EvalFactorEntity;
+import klieme.artdiary.solo.data_access.entity.EvalOptionEntity;
+import klieme.artdiary.solo.data_access.entity.QuestionEntity;
+import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
+import klieme.artdiary.solo.data_access.entity.UserExhPresenceId;
+import klieme.artdiary.solo.data_access.repository.ExhEvalChoiceRepository;
+import klieme.artdiary.solo.data_access.repository.SoloDiaryRepository;
+import klieme.artdiary.solo.data_access.repository.UserExhPresenceRepository;
+import klieme.artdiary.solo.model.EvalInfo;
+import klieme.artdiary.solo.model.SoloDiaryInfo;
 
 @Service
 public class MateExhService implements MateExhReadUseCase {
-
-	private final UserRepository userRepository;
-	private final DiaryRepository diaryRepository;
-	private final ExhRepository exhRepository;
 	private final MateRepository mateRepository;
+	private final VisitExhRepository visitExhRepository;
+	private final SoloDiaryRepository soloDiaryRepository;
+	private final UserExhPresenceRepository userExhPresenceRepository;
+	private final ExhEvalChoiceRepository exhEvalChoiceRepository;
 
 	@Autowired
-	public MateExhService(UserRepository userRepository, DiaryRepository diaryRepository, ExhRepository exhRepository,
-		MateRepository mateRepository) {
-		this.userRepository = userRepository;
-		this.diaryRepository = diaryRepository;
-		this.exhRepository = exhRepository;
+	public MateExhService(MateRepository mateRepository, VisitExhRepository visitExhRepository,
+		SoloDiaryRepository soloDiaryRepository, UserExhPresenceRepository userExhPresenceRepository,
+		ExhEvalChoiceRepository exhEvalChoiceRepository) {
+		this.exhEvalChoiceRepository = exhEvalChoiceRepository;
 		this.mateRepository = mateRepository;
+		this.visitExhRepository = visitExhRepository;
+		this.soloDiaryRepository = soloDiaryRepository;
+		this.userExhPresenceRepository = userExhPresenceRepository;
 	}
 
 	@Override
-	public List<FindMateExhsResult> getMateExhsList(MateExhsFindQuery query) {
-		Long mateId = query.getMateId();
+	public List<FindMateExhsResult> getMateExhsList(Long mateId) {
 		// 내 친구가 맞는지 확인 - exh_mate 확인
-		mateRepository.findByFromUserIdAndToUserId(getUserId(), mateId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		Boolean isMate = mateRepository.existsByFromUserIdAndToUserId(getUserId(), mateId);
 
-		List<Map<String, Object>> mateDiarySumRateAndCountList = diaryRepository.getMyDiarySumRateAndCount(mateId,
-			true);
+		if (!isMate) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
+		}
+		List<Map<String, Object>> visitExhList = visitExhRepository.getVisitExhListWithExhInfo(mateId);
 		List<FindMateExhsResult> result = new ArrayList<>();
 
-		for (Map<String, Object> mateDiarySumRateAndCount : mateDiarySumRateAndCountList) {
-			// map
-			Double sumOfRate = (Double)mateDiarySumRateAndCount.get("sumOfRate");
-			Long countOfDiary = (Long)mateDiarySumRateAndCount.get("countOfDiary");
-			ExhEntity exh = (ExhEntity)mateDiarySumRateAndCount.get("exhibition");
-			// averageRate & poster
-			double averageRate = sumOfRate / countOfDiary;
+		for (Map<String, Object> info : visitExhList) {
+			ExhEntity exhibition = (ExhEntity)info.get("exhibition");
+			LocalDate visitDate = (LocalDate)info.get("visitDate");
 
-			result.add(FindMateExhsResult.findMateExhs(exh, averageRate));
+			result.add(FindMateExhsResult.findMateExhs(exhibition, visitDate));
 		}
 		return result;
 	}
 
-	// @Override
-	// public List<FindMateExhsResult> getMateExhsList(MateExhsFindQuery query) {
-	// 	Long mateId = query.getMateId();
-	// 	// 내 친구가 맞는지 확인 - exh_mate 확인
-	// 	mateRepository.findByFromUserIdAndToUserId(getUserId(), mateId)
-	// 		.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-	//
-	// 	List<DiaryResponse> mateDiarySumRateAndCountList = diaryRepository.getMyDiarySumRateAndCount(mateId,
-	// 		true);
-	// 	List<FindMateExhsResult> result = new ArrayList<>();
-	//
-	// 	for (DiaryResponse value : mateDiarySumRateAndCountList) {
-	// 		double averageRate = (double)value.getSumOfRate() / value.getCountOfDiary();
-	// 		result.add(FindMateExhsResult.findMateExhs(value.getExh(), averageRate));
-	// 	}
-	// 	return result;
-	// }
-
 	@Override
-	public List<FindMateDiaryResult> getMateDiaryList(MateDiaryFindQuery query) {
+	public FindMateDiaryResult getMateDiaryList(MateDiaryFindQuery query) {
 		// 내 친구가 맞는지 확인 - exh_mate 확인
-		mateRepository.findByFromUserIdAndToUserId(getUserId(), query.getMateId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		Boolean isMate = mateRepository.existsByFromUserIdAndToUserId(getUserId(), query.getMateId());
 
-		UserEntity mateEntity = userRepository.findByUserId(query.getMateId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		ExhEntity mateExhEntity = exhRepository.findByExhId(query.getExhId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-
-		List<MateExhReadUseCase.FindMateDiaryResult> results = new ArrayList<>();
-		// 친구의 개인 기록 - exh_visit에서 확인
-
-		List<Map<String, Object>> diaryList = diaryRepository.getDiaryList(mateEntity.getUserId(),
-			mateExhEntity.getExhId(), null, null, false,
-			null, true);
-
-		for (Map<String, Object> item : diaryList) {
-			DiaryEntity diary = (DiaryEntity)item.get("diaryEntity");
-			ExhVisitEntity exhVisit = (ExhVisitEntity)item.get("exhVisitEntity");
-			GatheringEntity gathering = (GatheringEntity)item.get("gatheringEntity");
-
-			if (diary != null && exhVisit != null) {
-				results.add(
-					MateExhReadUseCase.FindMateDiaryResult.findMateDiary(diary, exhVisit, mateEntity, mateExhEntity,
-						gathering));
-			}
+		if (!isMate) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
 		}
-		results.sort(Comparator.comparing(FindMateDiaryResult::getInitDate));
-		return results;
+		// userExhPresence의 exhid와 userid 확인
+		Boolean isPresent = userExhPresenceRepository.existsByUserExhPresenceId(
+			UserExhPresenceId.builder().userId(query.getMateId()).exhId(query.getExhId()).build());
+
+		if (!isPresent) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
+		}
+
+		List<EvalInfo> evalInfoList = new ArrayList<>(); // 평가 정보 목록
+		List<SoloDiaryInfo> soloDiaryInfoList = new ArrayList<>(); // 기록 목록
+		// 평가 정보 가져오기
+		List<Map<String, Object>> evalChoices = exhEvalChoiceRepository.getChoices(query.getExhId(),
+			query.getMateId()); // 수정
+
+		for (Map<String, Object> info : evalChoices) {
+			EvalFactorEntity evalFactor = (EvalFactorEntity)info.get("evalFactor");
+			EvalOptionEntity evalOption = (EvalOptionEntity)info.get("evalOption");
+
+			evalInfoList.add(EvalInfo.of(evalFactor, evalOption));
+		}
+
+		// soloDiary에서 exhid와 userid에 해당하는 것 모두 가져오기 - question 필요
+		List<Map<String, Object>> diaryListWithQuestion = soloDiaryRepository.getSoloDiaryListWithQuestion(
+			query.getExhId(), query.getMateId(), true);
+
+		for (Map<String, Object> info : diaryListWithQuestion) {
+			SoloDiaryEntity soloDiary = (SoloDiaryEntity)info.get("soloDiary");
+			QuestionEntity question = (QuestionEntity)info.get("question");
+
+			soloDiaryInfoList.add(SoloDiaryInfo.of(soloDiary, question));
+		}
+		return FindMateDiaryResult.findMateDiary(evalInfoList, soloDiaryInfoList);
 	}
 
 	private Long getUserId() {
