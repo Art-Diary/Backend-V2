@@ -29,7 +29,7 @@ public class VisitExhEntity {
 	private Long visitExhId;
 	@Column(name = "exh_id", nullable = false)
 	private Long exhId;
-	@Column(name = "user_id", nullable = false)
+	@Column(name = "user_id")
 	private Long userId;
 	@Column(name = "gathering_id")
 	private Long gatheringId;

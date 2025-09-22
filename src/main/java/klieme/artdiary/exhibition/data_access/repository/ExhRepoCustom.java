@@ -15,6 +15,8 @@ public interface ExhRepoCustom {
 
 	List<ExhEntity> getNotVisitedExhListWithDate(LocalDate date, Long userId);
 
+	List<ExhEntity> getNotVisitedExhListWithDateInGathering(LocalDate date, Long gatheringId);
+
 	List<Map<String, Object>> searchExhListBySearchName(String searchName, Long userId);
 
 	List<Map<String, Object>> getExhListForExhData();

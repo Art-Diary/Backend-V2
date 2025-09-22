@@ -79,16 +79,25 @@ public class ExhRepoCustomImpl implements ExhRepoCustom {
 	public List<ExhEntity> getNotVisitedExhListWithDate(LocalDate date, Long userId) {
 		QExhEntity exh = QExhEntity.exhEntity;
 		QVisitExhEntity visitExh = QVisitExhEntity.visitExhEntity;
-		BooleanBuilder builder = new BooleanBuilder();
-
-		builder.or(visitExh.visitDate.ne(date)).or(visitExh.visitDate.isNull());
 
 		return query.select(exh)
-			.distinct()
 			.from(exh)
-			.leftJoin(visitExh).on(exh.exhId.eq(visitExh.exhId))
-			.fetchJoin()
-			.where(exh.startDate.loe(date), exh.endDate.goe(date), builder)
+			.where(exh.startDate.loe(date), exh.endDate.goe(date), exh.exhId.notIn(query.select(visitExh.exhId)
+				.from(visitExh)
+				.where(visitExh.visitDate.eq(date), visitExh.userId.eq(userId))))
+			.fetch();
+	}
+
+	@Override
+	public List<ExhEntity> getNotVisitedExhListWithDateInGathering(LocalDate date, Long gatheringId) {
+		QExhEntity exh = QExhEntity.exhEntity;
+		QVisitExhEntity visitExh = QVisitExhEntity.visitExhEntity;
+
+		return query.select(exh)
+			.from(exh)
+			.where(exh.startDate.loe(date), exh.endDate.goe(date), exh.exhId.notIn(query.select(visitExh.exhId)
+				.from(visitExh)
+				.where(visitExh.visitDate.eq(date), visitExh.gatheringId.eq(gatheringId))))
 			.fetch();
 	}
 

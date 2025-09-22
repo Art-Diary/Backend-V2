@@ -100,7 +100,6 @@ public class ExhController {
 	public ResponseEntity<List<LiteExhInfoView>> getNotVisitedExhListWithDate(
 		@NotNull @RequestParam(name = "date") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
 		log.info("[특정 날짜에 방문하지 않은 전시회 목록 조회]");
-		System.out.println("date: " + date);
 
 		// 비즈니스 로직 호출
 		var query = ExhReadUseCase.ExhListFindQuery.builder().date(date).build();

@@ -36,7 +36,7 @@ public class GatheringMemberRepoCustomImpl implements GatheringMemberRepoCustom 
 			.leftJoin(visitExh).on(gathering.gatheringId.eq(visitExh.gatheringId))
 			.fetchJoin()
 			.where(gatheringMember.gatheringMemberId.userId.eq(userId))
-			.groupBy(visitExh.gatheringId)
+			.groupBy(gatheringMember.gatheringMemberId.gatheringId)
 			.orderBy(visitExh.visitDate.max().desc())
 			.fetch();
 	}
@@ -78,29 +78,17 @@ public class GatheringMemberRepoCustomImpl implements GatheringMemberRepoCustom 
 	}
 
 	@Override
-	public List<Map<String, Object>> getGatheringMateList(Long gatherId) {
+	public List<UserEntity> getGatheringMateList(Long gatherId) {
 		QGatheringMemberEntity gatheringMember = QGatheringMemberEntity.gatheringMemberEntity;
-		QGatheringEntity gathering = QGatheringEntity.gatheringEntity;
 		QUserEntity user = QUserEntity.userEntity;
 
 		// 사용자가 모임에서 최근에 전시회를 방문한 날짜 순으로 정렬
-		List<Tuple> tuples = query
-			.select(user, gathering)
+		return query
+			.select(user)
 			.from(gatheringMember)
-			.leftJoin(gathering).on(gatheringMember.gatheringMemberId.gatheringId.eq(gathering.gatheringId))
 			.leftJoin(user).on(gatheringMember.gatheringMemberId.userId.eq(user.userId))
 			.fetchJoin()
 			.where(gatheringMember.gatheringMemberId.gatheringId.eq(gatherId))
 			.fetch();
-
-		List<Map<String, Object>> results = new ArrayList<>();
-
-		for (Tuple tuple : tuples) {
-			Map<String, Object> row = new HashMap<>();
-			row.put("user", tuple.get(0, UserEntity.class));
-			row.put("gathering", tuple.get(1, GatheringEntity.class));
-			results.add(row);
-		}
-		return results;
 	}
 }

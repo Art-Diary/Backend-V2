@@ -14,13 +14,13 @@ public class GatheringMateView {
 	private final Long userId;
 	private final String nickname;
 	private final String profile;
-	private final String favoriteArt;
+	private final String artField;
 
 	@Builder
-	public GatheringMateView(GatheringReadUseCase.FindGatheringMatesResult result) {
+	public GatheringMateView(GatheringReadUseCase.FindGatheringMemberResult result) {
 		this.userId = result.getUserId();
 		this.nickname = result.getNickname();
 		this.profile = result.getProfile();
-		this.favoriteArt = result.getFavoriteArt();
+		this.artField = result.getArtField();
 	}
 }
