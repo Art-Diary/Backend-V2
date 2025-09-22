@@ -9,8 +9,7 @@ import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
 import klieme.artdiary.gathering.info.ExhibitionInfo;
 import klieme.artdiary.gathering.info.MateInfo;
-import klieme.artdiary.record_data_access.entity.DiaryEntity;
-import klieme.artdiary.record_data_access.entity.ExhVisitEntity;
+import klieme.artdiary.gathering.info.VisitExhInfo;
 import klieme.artdiary.user.data_access.entity.UserEntity;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -21,36 +20,40 @@ public interface GatheringReadUseCase {
 
 	List<FindGatheringResult> getGatheringList();
 
-	List<FindGatheringDiaryResult> getDiariesAboutGatheringExh(GatheringDiariesFindQuery query);
+	FindGatheringDetailInfoResult getGatheringDetailInfo(Long gatheringId);
 
-	FindGatheringDetailInfoResult getGatheringDetailInfo(GatheringDetailInfoFindQuery query);
+	FindIsGatheringMemberResult searchNicknameNotInGathering(GatheringNicknameFindQuery query);
 
-	FindIsGatheringMateResult searchNicknameNotInGathering(GatheringNicknameFindQuery query);
+	List<FindGatheringVisitExhResult> getGatheringVisitDateList(GatheringVisitExhFindQuery query);
 
-	@EqualsAndHashCode
-	@Getter
-	@ToString
-	@Builder
-	class GatheringDiariesFindQuery {
-		private final Long exhId;
-		private final Long gatherId;
-	}
-
-	@EqualsAndHashCode
-	@Getter
-	@ToString
-	@Builder
-	class GatheringDetailInfoFindQuery {
-		private final Long gatherId;
-	}
+	List<FindGatheringNotVisitExhResult> getGatheringNotVisitedExhListWithDate(GatheringNotVisitExhFindQuery query);
 
 	@EqualsAndHashCode
 	@Getter
 	@ToString
 	@Builder
 	class GatheringNicknameFindQuery {
-		private final Long gatherId;
+		private final Long gatheringId;
 		private final String nickname;
+	}
+
+	@EqualsAndHashCode
+	@Getter
+	@ToString
+	@Builder
+	class GatheringVisitExhFindQuery {
+		private final Long gatheringId;
+		private final Integer year;
+		private final Integer month;
+	}
+
+	@EqualsAndHashCode
+	@Getter
+	@ToString
+	@Builder
+	class GatheringNotVisitExhFindQuery {
+		private final Long gatheringId;
+		private final LocalDate date;
 	}
 
 	@Getter
@@ -71,74 +74,13 @@ public interface GatheringReadUseCase {
 	@Getter
 	@ToString
 	@Builder
-	class FindGatheringExhResult {
-		private final Long exhId;
-		private final String exhName;
-		private final String poster;
-		private final Double rate;
+	class FindIsGatheringMemberResult {
+		private final List<FindGatheringMemberResult> alreadyMate;
+		private final List<FindGatheringMemberResult> notMate;
 
-		public static FindGatheringExhResult findByGatheringExh(ExhEntity entity, Double rate) {
-			return FindGatheringExhResult.builder()
-				.exhId(entity.getExhId())
-				.exhName(entity.getExhName())
-				.poster(entity.getPoster())
-				.rate(rate)
-				.build();
-		}
-	}
-
-	@Getter
-	@ToString
-	@Builder
-	class FindGatheringDiaryResult {
-		private final Long diaryId;
-		private final String title;
-		private final Double rate;
-		private final Boolean diaryPrivate;
-		private final String contents;
-		private final String thumbnail;
-		private final String initDate;
-		private final String writeDate;
-		private final String saying;
-		private final Long userId;
-		private final String nickname; // 작성자
-		private final String gatherName; // 개인일 경우 null
-		private final String visitDate;
-		private final String exhName;
-		private final Long exhVisitId;
-
-		public static FindGatheringDiaryResult findByGatheringDiary(DiaryEntity diary, ExhVisitEntity exhVisit,
-			GatheringEntity gathering, UserEntity user, ExhEntity exh) {
-			return FindGatheringDiaryResult.builder()
-				.diaryId(diary.getDiaryId())
-				.title(diary.getTitle())
-				.rate(diary.getRate())
-				.diaryPrivate(diary.getDiaryPrivate())
-				.contents(diary.getContents())
-				.thumbnail(diary.getThumbnail())
-				.initDate(changeDateFormat(LocalDate.from(diary.getInitDate())))
-				.writeDate(changeDateFormat(diary.getWriteDate()))
-				.saying(diary.getSaying())
-				.userId(user != null ? user.getUserId() : null)
-				.nickname(user != null ? user.getNickname() : null)
-				.gatherName(gathering.getGatheringName())
-				.visitDate(changeDateFormat(exhVisit.getVisitDate()))
-				.exhName(exh.getExhName())
-				.exhVisitId(diary.getExhVisitId())
-				.build();
-		}
-	}
-
-	@Getter
-	@ToString
-	@Builder
-	class FindIsGatheringMateResult {
-		private final List<FindGatheringMatesResult> alreadyMate;
-		private final List<FindGatheringMatesResult> notMate;
-
-		public static FindIsGatheringMateResult findByGatheringMate(List<FindGatheringMatesResult> alreadyMate,
-			List<FindGatheringMatesResult> notMate) {
-			return FindIsGatheringMateResult.builder()
+		public static FindIsGatheringMemberResult findByGatheringMate(List<FindGatheringMemberResult> alreadyMate,
+			List<FindGatheringMemberResult> notMate) {
+			return FindIsGatheringMemberResult.builder()
 				.alreadyMate(alreadyMate)
 				.notMate(notMate)
 				.build();
@@ -148,18 +90,18 @@ public interface GatheringReadUseCase {
 	@Getter
 	@ToString
 	@Builder
-	class FindGatheringMatesResult {
+	class FindGatheringMemberResult {
 		private final Long userId;
 		private final String nickname;
 		private final String profile;
-		private final String favoriteArt;
+		private final String artField;
 
-		public static FindGatheringMatesResult findByGatheringMates(UserEntity user) {
-			return FindGatheringMatesResult.builder()
+		public static FindGatheringMemberResult findByGatheringMates(UserEntity user) {
+			return FindGatheringMemberResult.builder()
 				.userId(user.getUserId())
 				.nickname(user.getNickname())
 				.profile(user.getProfile())
-				.favoriteArt(user.getArtField())
+				.artField(user.getArtField())
 				.build();
 		}
 	}
@@ -176,6 +118,45 @@ public interface GatheringReadUseCase {
 			return FindGatheringDetailInfoResult.builder()
 				.mates(mates)
 				.exhibitions(exhibitions)
+				.build();
+		}
+	}
+
+	@Getter
+	@ToString
+	@Builder
+	class FindGatheringVisitExhResult {
+		private final Integer day;
+		private final List<VisitExhInfo> exhibitions;
+
+		public static FindGatheringVisitExhResult findByGatheringVisitExh(Integer day,
+			List<VisitExhInfo> exhibitions) {
+			return FindGatheringVisitExhResult.builder()
+				.day(day)
+				.exhibitions(exhibitions)
+				.build();
+		}
+	}
+
+	@Getter
+	@ToString
+	@Builder
+	class FindGatheringNotVisitExhResult {
+		private final Long exhId;
+		private final String exhName;
+		private final String gallery;
+		private final String poster;
+		private final String startDate;
+		private final String endDate;
+
+		public static FindGatheringNotVisitExhResult findByGatheringNotVisitExhResult(ExhEntity exh) {
+			return FindGatheringNotVisitExhResult.builder()
+				.exhId(exh.getExhId())
+				.exhName(exh.getExhName())
+				.gallery(exh.getGallery())
+				.poster(exh.getPoster())
+				.startDate(changeDateFormat(exh.getStartDate()))
+				.endDate(changeDateFormat(exh.getEndDate()))
 				.build();
 		}
 	}

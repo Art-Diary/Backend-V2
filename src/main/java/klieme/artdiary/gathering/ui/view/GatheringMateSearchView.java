@@ -13,11 +13,11 @@ import lombok.ToString;
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GatheringMateSearchView {
-	private final List<GatheringReadUseCase.FindGatheringMatesResult> alreadyMate;
-	private final List<GatheringReadUseCase.FindGatheringMatesResult> notMate;
+	private final List<GatheringReadUseCase.FindGatheringMemberResult> alreadyMate;
+	private final List<GatheringReadUseCase.FindGatheringMemberResult> notMate;
 
 	@Builder
-	public GatheringMateSearchView(GatheringReadUseCase.FindIsGatheringMateResult result) {
+	public GatheringMateSearchView(GatheringReadUseCase.FindIsGatheringMemberResult result) {
 		this.alreadyMate = result.getAlreadyMate();
 		this.notMate = result.getNotMate();
 	}

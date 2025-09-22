@@ -42,6 +42,7 @@ public interface MateExhReadUseCase {
 			return FindMateExhsResult.builder()
 				.exhId(entity.getExhId())
 				.exhName(entity.getExhName())
+				.gallery(entity.getGallery())
 				.poster(entity.getPoster())
 				.visitDate(changeDateFormat(visitDate))
 				.build();

@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AddGatheringRequest {
 	@NotBlank
-	private String gatherName;
+	private String gatheringName;
 }

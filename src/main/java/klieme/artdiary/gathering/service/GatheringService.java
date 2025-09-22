@@ -6,33 +6,35 @@ import static klieme.artdiary.common.SecurityUtil.*;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import klieme.artdiary.calendar.enums.CalendarKind;
 import klieme.artdiary.common.api.ArtDiaryException;
 import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.common.push_alarm.PushAlarm;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.data_access.repository.ExhRepository;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
+import klieme.artdiary.gathering.data_access.entity.GatheringExhPresenceEntity;
+import klieme.artdiary.gathering.data_access.entity.GatheringExhPresenceId;
 import klieme.artdiary.gathering.data_access.entity.GatheringMemberEntity;
 import klieme.artdiary.gathering.data_access.entity.GatheringMemberId;
+import klieme.artdiary.gathering.data_access.repository.GatheringExhPresenceRepository;
 import klieme.artdiary.gathering.data_access.repository.GatheringMemberRepository;
 import klieme.artdiary.gathering.data_access.repository.GatheringRepository;
 import klieme.artdiary.gathering.info.ExhibitionInfo;
 import klieme.artdiary.gathering.info.MateInfo;
-import klieme.artdiary.record_data_access.entity.DiaryEntity;
-import klieme.artdiary.record_data_access.entity.ExhVisitEntity;
-import klieme.artdiary.record_data_access.repository.DiaryRepository;
-import klieme.artdiary.record_data_access.repository.ExhVisitRepository;
+import klieme.artdiary.gathering.info.VisitExhInfo;
+import klieme.artdiary.record_data_access.entity.VisitExhEntity;
+import klieme.artdiary.record_data_access.repository.VisitExhRepository;
 import klieme.artdiary.user.data_access.entity.UserEntity;
 import klieme.artdiary.user.data_access.repository.UserRepository;
 
@@ -42,21 +44,21 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 	private final GatheringMemberRepository gatheringMemberRepository;
 	private final ExhRepository exhRepository;
 	private final UserRepository userRepository;
-	private final ExhVisitRepository exhVisitRepository;
-	private final DiaryRepository diaryRepository;
+	private final VisitExhRepository visitExhRepository;
+	private final GatheringExhPresenceRepository gatheringExhPresenceRepository;
 	private final PushAlarm pushAlarm;
 
 	@Autowired
-	public GatheringService(GatheringRepository gatheringRepository, GatheringMemberRepository gatheringMemberRepository,
-		ExhRepository exhRepository, UserRepository userRepository, ExhVisitRepository exhVisitRepository,
-		DiaryRepository diaryRepository, PushAlarm pushAlarm) {
+	public GatheringService(GatheringRepository gatheringRepository, PushAlarm pushAlarm,
+		GatheringMemberRepository gatheringMemberRepository, ExhRepository exhRepository, UserRepository userRepository,
+		VisitExhRepository visitExhRepository, GatheringExhPresenceRepository gatheringExhPresenceRepository) {
 		this.gatheringRepository = gatheringRepository;
 		this.gatheringMemberRepository = gatheringMemberRepository;
 		this.exhRepository = exhRepository;
 		this.userRepository = userRepository;
-		this.exhVisitRepository = exhVisitRepository;
-		this.diaryRepository = diaryRepository;
 		this.pushAlarm = pushAlarm;
+		this.visitExhRepository = visitExhRepository;
+		this.gatheringExhPresenceRepository = gatheringExhPresenceRepository;
 	}
 
 	@Transactional
@@ -64,7 +66,7 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 	public GatheringReadUseCase.FindGatheringResult createGathering(GatheringCreateCommand command) {
 		// 모임 생성
 		GatheringEntity gatheringEntity = GatheringEntity.builder()
-			.gatheringName(command.getGatherName())
+			.gatheringName(command.getGatheringName())
 			.build();
 		gatheringRepository.save(gatheringEntity);
 		// 모임에 유저 추가
@@ -94,14 +96,193 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 		return gatherings;
 	}
 
+	@Override
+	public FindGatheringDetailInfoResult getGatheringDetailInfo(Long gatheringId) {
+		// 유저가 모임에 포함되어있는지 확인
+		gatheringMemberRepository.findByGatheringMemberId(GatheringMemberId.builder()
+			.userId(getUserId())
+			.gatheringId(gatheringId)
+			.build()).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+
+		List<MateInfo> mateInfoList = new ArrayList<>();
+		List<ExhibitionInfo> exhibitionInfoList = new ArrayList<>();
+		// 1. gathering에 포함되어 있는 유저 리스트
+		List<UserEntity> gatheringMateList = gatheringMemberRepository.getGatheringMateList(gatheringId);
+
+		for (UserEntity info : gatheringMateList) {
+			mateInfoList.add(MateInfo.builder()
+				.userId(info.getUserId())
+				.nickname(info.getNickname())
+				.build());
+		}
+		// 2. gathering이 저장한 전시회 리스트(중복 제외)
+		List<Map<String, Object>> gatheringVisitExhList = visitExhRepository.getGatheringVisitExhListWithExhInfo(
+			gatheringId);
+
+		for (Map<String, Object> info : gatheringVisitExhList) {
+			ExhEntity exhibition = (ExhEntity)info.get("exhibition");
+			LocalDate visitDate = (LocalDate)info.get("visitDate");
+
+			exhibitionInfoList.add(ExhibitionInfo.builder()
+				.exhId(exhibition.getExhId())
+				.exhName(exhibition.getExhName())
+				.poster(exhibition.getPoster())
+				.gallery(exhibition.getGallery())
+				.visitDate(changeDateFormat(visitDate))
+				.build());
+		}
+		return FindGatheringDetailInfoResult.findByGatheringDetailInfo(mateInfoList, exhibitionInfoList);
+	}
+
+	@Override
+	public FindIsGatheringMemberResult searchNicknameNotInGathering(GatheringNicknameFindQuery query) {
+		Long myUserId = getUserId();
+		// 모임에 속해 있는지 확인
+		gatheringMemberRepository.findByGatheringMemberId(GatheringMemberId.builder()
+				.gatheringId(query.getGatheringId())
+				.userId(myUserId)
+				.build())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// 내 전시 리스트 중, 이미 모임에 포함된 경우와 아닌 경우로 나눠서 반환하기
+		List<Map<String, Object>> gatheringMateQuery = gatheringMemberRepository.getGatheringMateListForSearch(
+			query.getGatheringId(), myUserId, query.getNickname());
+		List<FindGatheringMemberResult> alreadyMate = new ArrayList<>();
+		List<FindGatheringMemberResult> notMate = new ArrayList<>();
+
+		for (Map<String, Object> gatheringMate : gatheringMateQuery) {
+			UserEntity user = (UserEntity)gatheringMate.get("userEntity");
+			Boolean isMate = (Boolean)gatheringMate.get("isGatheringMate");
+
+			if (Objects.equals(myUserId, user.getUserId())) {
+				continue;
+			}
+			if (isMate) {
+				alreadyMate.add(FindGatheringMemberResult.findByGatheringMates(user));
+			} else {
+				notMate.add(FindGatheringMemberResult.findByGatheringMates(user));
+			}
+		}
+		return FindIsGatheringMemberResult.findByGatheringMate(alreadyMate, notMate);
+	}
+
 	@Transactional
 	@Override
-	public List<FindGatheringExhResult> addExhAboutGathering(ExhGatheringCreateCommand command) throws IOException {
-		// 유저가 속한 모임의 gatherId인지 확인
-		gatheringMemberRepository.findByGatheringMemberId(GatheringMemberId.builder()
-			.gatheringId(command.getGatherId())
+	public List<FindGatheringMemberResult> addGatheringMate(GatheringMateCreateCommand command) {
+		Long myUserId = getUserId();
+		// 유저가 존재하는지 확인
+		UserEntity requestGatheringMate = getUser(command.getUserId());
+		// 모임에 속해 있는지 확인
+		gatheringMemberRepository.findByGatheringMemberId(
+				GatheringMemberId.builder().gatheringId(command.getGatheringId()).userId(myUserId).build())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// 모임에 추가
+		GatheringMemberEntity gatheringMate = GatheringMemberEntity.builder()
+			.gatheringMemberId(GatheringMemberId.builder()
+				.userId(requestGatheringMate.getUserId())
+				.gatheringId(command.getGatheringId())
+				.build())
+			.build();
+		try {
+			gatheringMemberRepository.save(gatheringMate);
+		} catch (Exception e) {
+			throw new ArtDiaryException(MessageType.CONFLICT);
+		}
+		// 모임에 속해 있는 메이트 리스트 조회
+		List<UserEntity> gatheringMateList = gatheringMemberRepository.getGatheringMateList(command.getGatheringId());
+		List<FindGatheringMemberResult> results = new ArrayList<>();
+
+		for (UserEntity info : gatheringMateList) {
+			results.add(FindGatheringMemberResult.findByGatheringMates(info));
+		}
+		// 초대 받은 사용자에게 푸시 알림 보내기
+		// sendPushAlarmToInvitedUser(requestGatheringMate, savedGathering);
+		return results;
+	}
+
+	@Transactional
+	@Override
+	public void deleteMyGathering(Long gatheringId) {
+
+		GatheringMemberId deleteGatheringMemberId = GatheringMemberId.builder()
+			.gatheringId(gatheringId)
 			.userId(getUserId())
-			.build()).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+			.build();
+		GatheringMemberEntity deleteEntity = gatheringMemberRepository.findByGatheringMemberId(deleteGatheringMemberId)
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		gatheringMemberRepository.delete(deleteEntity);
+	}
+
+	@Override
+	public List<FindGatheringVisitExhResult> getGatheringVisitDateList(GatheringVisitExhFindQuery query) {
+		Long userId = getUserId();
+		// 모임에 속해 있는지 확인
+		gatheringMemberRepository.findByGatheringMemberId(
+				GatheringMemberId.builder().gatheringId(query.getGatheringId()).userId(userId).build())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		//
+		LocalDate selectedStartDate = LocalDate.of(query.getYear(), query.getMonth(), 1);
+		LocalDate selectedEndDate = selectedStartDate.withDayOfMonth(selectedStartDate.lengthOfMonth());
+		List<Map<String, Object>> visitInfo = visitExhRepository.getVisitInfoForCalendar(CalendarKind.GATHER, userId,
+			query.getGatheringId(), selectedStartDate, selectedEndDate);
+		HashMap<Integer, List<VisitExhInfo>> dayOfScheduleInfos = new HashMap<>();
+
+		for (Map<String, Object> info : visitInfo) {
+			VisitExhEntity visitExh = (VisitExhEntity)info.get("visitExh");
+			ExhEntity exhibition = (ExhEntity)info.get("exhibition");
+
+			// 날짜 별 전시회 추가
+			int day = visitExh.getVisitDate().getDayOfMonth();
+
+			dayOfScheduleInfos.computeIfAbsent(day, k -> new ArrayList<>());
+			dayOfScheduleInfos.get(day).add(VisitExhInfo.builder()
+				.exhId(exhibition.getExhId())
+				.exhName(exhibition.getExhName())
+				.gallery(exhibition.getGallery())
+				.poster(exhibition.getPoster())
+				.startDate(changeDateFormat(exhibition.getStartDate()))
+				.endDate(changeDateFormat(exhibition.getEndDate()))
+				.visitDate(changeDateFormat(visitExh.getVisitDate()))
+				.build());
+		}
+		List<FindGatheringVisitExhResult> results = new ArrayList<>();
+
+		for (int day = 1; day <= selectedEndDate.getDayOfMonth(); day++) {
+			if (dayOfScheduleInfos.get(day) != null) {
+				results.add(FindGatheringVisitExhResult.findByGatheringVisitExh(day, dayOfScheduleInfos.get(day)));
+			} else {
+				results.add(FindGatheringVisitExhResult.findByGatheringVisitExh(day, null));
+			}
+		}
+		return results;
+	}
+
+	@Override
+	public List<FindGatheringNotVisitExhResult> getGatheringNotVisitedExhListWithDate(
+		GatheringNotVisitExhFindQuery query) {
+		Long userId = getUserId();
+		// 모임에 속해 있는지 확인
+		gatheringMemberRepository.findByGatheringMemberId(
+				GatheringMemberId.builder().gatheringId(query.getGatheringId()).userId(userId).build())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// 모임에서 가지 않은 전시회 목록 조회
+		List<FindGatheringNotVisitExhResult> results = new ArrayList<>();
+		List<ExhEntity> infoList = exhRepository.getNotVisitedExhListWithDateInGathering(query.getDate(),
+			query.getGatheringId());
+
+		for (ExhEntity exhibition : infoList) {
+			results.add(FindGatheringNotVisitExhResult.findByGatheringNotVisitExhResult(exhibition));
+		}
+		return results;
+	}
+
+	@Transactional
+	@Override
+	public void addExhAboutGathering(ExhGatheringCreateCommand command) {
+		Long userId = getUserId();
+		// 모임에 속해 있는지 확인
+		gatheringMemberRepository.findByGatheringMemberId(
+				GatheringMemberId.builder().gatheringId(command.getGatheringId()).userId(userId).build())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 		// exhId 존재하는 전시회 아이디인지 확인
 		ExhEntity storedExhEntity = exhRepository.findByExhId(command.getExhId())
 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
@@ -111,234 +292,41 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 			|| storedExhEntity.getEndDate().isBefore(command.getVisitDate())) {
 			throw new ArtDiaryException(MessageType.FORBIDDEN_DATE);
 		}
-		// 관람 날짜 추가
-		ExhVisitEntity newExhVisit = ExhVisitEntity.builder()
-			.visitDate(command.getVisitDate())
-			.gatherId(command.getGatherId())
-			.exhId(storedExhEntity.getExhId())
-			.build();
 		// 관람 날짜 중복 확인
-		Optional<ExhVisitEntity> checkExhVisit = exhVisitRepository.findByGatherIdAndExhIdAndVisitDate(
-			command.getGatherId(), storedExhEntity.getExhId(), command.getVisitDate());
+		Boolean checkExhVisit = visitExhRepository.existsByExhIdAndUserIdAndGatheringIdAndVisitDate(command.getExhId(),
+			null, command.getGatheringId(), command.getVisitDate());
 
-		if (checkExhVisit.isPresent()) {
+		if (checkExhVisit) {
 			throw new ArtDiaryException(MessageType.CONFLICT);
 		}
+		// 관람 날짜 추가
+		VisitExhEntity newExhVisit = VisitExhEntity.builder()
+			.exhId(command.getExhId())
+			.gatheringId(command.getGatheringId())
+			.visitDate(command.getVisitDate())
+			.build();
 		try {
-			exhVisitRepository.save(newExhVisit);
+			visitExhRepository.save(newExhVisit);
 		} catch (DataIntegrityViolationException e) {
 			throw new ArtDiaryException(MessageType.CONFLICT);
 		}
+		// 모임 리스트
+		List<GatheringMemberEntity> gatheringMemberList = gatheringMemberRepository.findByGatheringMemberIdGatheringId(
+			command.getGatheringId());
+		List<GatheringExhPresenceEntity> gatheringExhPresenceList = new ArrayList<>();
 
-		/* 반환 - 모임의 전시회 리스트 */
-		// 반환 (모임에서 작성한 글들의 평점?으로 구현함.)
-		List<FindGatheringExhResult> result = new ArrayList<>();
-		// 모임이 갔다 온 각 전시회의 평점 구하기
-		List<Map<String, Object>> gatherDiarySumRateAndCountList = diaryRepository.getGatherDiarySumRateAndCount(
-			getUserId(), command.getGatherId());
-
-		for (Map<String, Object> gatherDiarySumRateAndCount : gatherDiarySumRateAndCountList) {
-			// map
-			Double sumOfRate = (Double)gatherDiarySumRateAndCount.get("sumOfRate");
-			Long countOfDiary = (Long)gatherDiarySumRateAndCount.get("countOfDiary");
-			ExhEntity exh = (ExhEntity)gatherDiarySumRateAndCount.get("exhibition");
-			LocalDate visitDate = (LocalDate)gatherDiarySumRateAndCount.get("visitDate");
-			// averageRate & poster
-			double averageRate = 0.0;
-
-			if (sumOfRate != null && countOfDiary != null && countOfDiary != 0) {
-				averageRate = sumOfRate / countOfDiary;
-			}
-			result.add(FindGatheringExhResult.findByGatheringExh(exh, averageRate));
+		for (GatheringMemberEntity member : gatheringMemberList) {
+			gatheringExhPresenceList.add(GatheringExhPresenceEntity.builder()
+				.gatheringExhPresenceId(GatheringExhPresenceId.builder()
+					.exhId(command.getExhId())
+					.gatheringId(command.getGatheringId())
+					.userId(member.getGatheringMemberId().getUserId())
+					.build())
+				.build());
 		}
-
+		gatheringExhPresenceRepository.saveAll(gatheringExhPresenceList);
 		// 모임 멤버들에게 푸시 알림 보내기
-		sendPushAlarmToGatheringMember(command.getGatherId(), command.getVisitDate());
-		return result;
-	}
-
-	@Override
-	public List<FindGatheringDiaryResult> getDiariesAboutGatheringExh(GatheringDiariesFindQuery query) {
-		// gather 데이터
-		GatheringEntity gatheringEntity = gatheringRepository.findByGatheringId(query.getGatherId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		// 모임에 포함되어 있는지 확인
-		gatheringMemberRepository.findByGatheringMemberId(GatheringMemberId.builder()
-			.userId(getUserId())
-			.gatheringId(gatheringEntity.getGatheringId())
-			.build()).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		// exh 전시회 존재 여부 확인
-		ExhEntity exh = exhRepository.findByExhId(query.getExhId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-
-		// 다이어리 반환
-		List<Map<String, Object>> diaryList = diaryRepository.getGatherDiaryList(gatheringEntity.getGatheringId(),
-			exh.getExhId());
-		List<FindGatheringDiaryResult> results = new ArrayList<>();
-
-		for (Map<String, Object> item : diaryList) {
-			DiaryEntity diary = (DiaryEntity)item.get("diaryEntity");
-			ExhVisitEntity exhVisit = (ExhVisitEntity)item.get("exhVisitEntity");
-			GatheringEntity gathering = (GatheringEntity)item.get("gatheringEntity");
-			UserEntity user = (UserEntity)item.get("userEntity");
-
-			if (diary != null && exhVisit != null) {
-				// 비공개이지만 내가 작성한 경우
-				if (!(diary.getDiaryPrivate() || Objects.equals(diary.getWriterId(), getUserId()))) {
-					continue;
-				}
-				results.add(
-					FindGatheringDiaryResult.findByGatheringDiary(diary, exhVisit, gathering, user, exh));
-			}
-		}
-		results.sort(Comparator.comparing(FindGatheringDiaryResult::getInitDate));
-		return results;
-	}
-
-	@Override
-	public List<FindGatheringMatesResult> addGatheringMate(GatheringMateCreateCommand command) throws IOException {
-		// 유저가 존재하는지 확인
-		UserEntity requestGatheringMate = getUser(command.getUserId());
-		// gatherId 확인
-		GatheringEntity savedGathering = gatheringRepository.findByGatheringId(command.getGatherId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		// 내가 모임에 속해 있는지 확인
-		gatheringMemberRepository.findByGatheringMemberId(
-				GatheringMemberId.builder().gatheringId(command.getGatherId()).userId(getUserId()).build())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		// 모임에 속해 있는 메이트 리스트 조회
-		List<GatheringMemberEntity> gatheringMateEntities = gatheringMemberRepository.findByGatheringMemberIdGatheringId(
-			command.getGatherId());
-
-		for (GatheringMemberEntity gatheringMate : gatheringMateEntities) {
-			// 요청한 유저가 이미 모임에 있는지 확인
-			if (gatheringMate.getGatheringMemberId().getUserId().equals(requestGatheringMate.getUserId())) {
-				throw new ArtDiaryException(MessageType.CONFLICT);
-			}
-		}
-
-		// 모임에 추가
-		GatheringMemberEntity gatheringMate = GatheringMemberEntity.builder()
-			.gatheringMemberId(GatheringMemberId.builder()
-				.userId(requestGatheringMate.getUserId())
-				.gatheringId(command.getGatherId())
-				.build())
-			.build();
-		try {
-			gatheringMemberRepository.save(gatheringMate);
-		} catch (Exception e) {
-			throw new ArtDiaryException(MessageType.CONFLICT);
-		}
-
-		// 기존 모임 메이트 리스트에 새로운 메이트 추가하여 gatheringMateEntities 재활용
-		gatheringMateEntities.add(gatheringMate);
-
-		List<FindGatheringMatesResult> results = new ArrayList<>();
-
-		for (GatheringMemberEntity gatheringMemberEntity : gatheringMateEntities) {
-			UserEntity mate = getUser(gatheringMemberEntity.getGatheringMemberId().getUserId());
-			results.add(FindGatheringMatesResult.findByGatheringMates(mate));
-		}
-
-		// 초대 받은 사용자에게 푸시 알림 보내기
-		sendPushAlarmToInvitedUser(requestGatheringMate, savedGathering);
-		return results;
-	}
-
-	@Override
-	public FindGatheringDetailInfoResult getGatheringDetailInfo(GatheringDetailInfoFindQuery query) {
-		// 유저가 모임에 포함되어있는지 확인
-		gatheringMemberRepository.findByGatheringMemberId(GatheringMemberId.builder()
-			.userId(getUserId())
-			.gatheringId(query.getGatherId())
-			.build()).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-
-		List<MateInfo> mateInfoList = new ArrayList<>();
-		List<ExhibitionInfo> exhibitionInfoList = new ArrayList<>();
-		// 1. gathering에 포함되어 있는 유저 리스트
-		List<Map<String, Object>> gatheringMateList = gatheringMemberRepository.getGatheringMateList(query.getGatherId());
-
-		for (Map<String, Object> info : gatheringMateList) {
-			UserEntity user = (UserEntity)info.get("user");
-
-			mateInfoList.add(MateInfo.builder()
-				.userId(user.getUserId())
-				.nickname(user.getNickname())
-				.build());
-		}
-		// 2. gathering이 저장한 전시회 리스트(중복 제외)
-		// 모임이 갔다 온 각 전시회의 평점 구하기 (모임에서 작성한 글들의 평점?으로 구현함.)
-		List<Map<String, Object>> gatherDiarySumRateAndCountList = diaryRepository.getGatherDiarySumRateAndCount(
-			getUserId(), query.getGatherId());
-
-		for (Map<String, Object> gatherDiarySumRateAndCount : gatherDiarySumRateAndCountList) {
-			// map
-			Double sumOfRate = (Double)gatherDiarySumRateAndCount.get("sumOfRate");
-			Long countOfDiary = (Long)gatherDiarySumRateAndCount.get("countOfDiary");
-			ExhEntity exh = (ExhEntity)gatherDiarySumRateAndCount.get("exhibition");
-			LocalDate visitDate = (LocalDate)gatherDiarySumRateAndCount.get("visitDate");
-			// averageRate & poster
-			double averageRate = 0.0;
-
-			if (sumOfRate != null && countOfDiary != null && countOfDiary != 0) {
-				averageRate = sumOfRate / countOfDiary;
-			}
-			exhibitionInfoList.add(ExhibitionInfo.builder()
-				.exhId(exh.getExhId())
-				.exhName(exh.getExhName())
-				.poster(exh.getPoster())
-				.rate(averageRate)
-				.visitDate(changeDateFormat(visitDate))
-				.build());
-		}
-		return FindGatheringDetailInfoResult.findByGatheringDetailInfo(mateInfoList, exhibitionInfoList);
-	}
-
-	@Override
-	public FindIsGatheringMateResult searchNicknameNotInGathering(GatheringNicknameFindQuery query) {
-		Long myUserId = getUserId();
-
-		// 모임에 속해 있는지 확인
-		Optional<GatheringMemberEntity> isMember = gatheringMemberRepository.findByGatheringMemberId(GatheringMemberId.builder()
-			.gatheringId(query.getGatherId())
-			.userId(myUserId)
-			.build());
-
-		if (isMember.isEmpty()) {
-			throw new ArtDiaryException(MessageType.NOT_FOUND);
-		}
-		// 내 전시 리스트 중, 이미 모임에 포함된 경우와 아닌 경우로 나눠서 반환하기
-		List<Map<String, Object>> gatheringMateQuery = gatheringMemberRepository.getGatheringMateListForSearch(
-			query.getGatherId(), myUserId, query.getNickname());
-		List<FindGatheringMatesResult> alreadyMate = new ArrayList<>();
-		List<FindGatheringMatesResult> notMate = new ArrayList<>();
-
-		for (Map<String, Object> gatheringMate : gatheringMateQuery) {
-			UserEntity userEntity = (UserEntity)gatheringMate.get("userEntity");
-			Boolean isMate = (Boolean)gatheringMate.get("isGatheringMate");
-
-			if (Objects.equals(myUserId, userEntity.getUserId())) {
-				continue;
-			}
-			if (isMate) {
-				alreadyMate.add(FindGatheringMatesResult.findByGatheringMates(userEntity));
-			} else {
-				notMate.add(FindGatheringMatesResult.findByGatheringMates(userEntity));
-			}
-		}
-		return FindIsGatheringMateResult.findByGatheringMate(alreadyMate, notMate);
-	}
-
-	@Override
-	public void deleteMyGathering(Long gatherId) {
-
-		GatheringMemberId deleteGatheringMemberId = GatheringMemberId.builder()
-			.gatheringId(gatherId)
-			.userId(getUserId())
-			.build();
-		GatheringMemberEntity deleteEntity = gatheringMemberRepository.findByGatheringMemberId(deleteGatheringMemberId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		gatheringMemberRepository.delete(deleteEntity);
+		// sendPushAlarmToGatheringMember(command.getGatherId(), command.getVisitDate());
 	}
 
 	private Long getUserId() {
@@ -364,23 +352,23 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 	private void sendPushAlarmToGatheringMember(Long gatherId, LocalDate visitDate) throws
 		IOException {
 		// 모임의 멤버들의 NewGatheringAlarm 푸시 알림이 켜져있어야 하고, 알림 토큰이 있어야 한다.
-		List<Map<String, Object>> gatheringMateList = gatheringMemberRepository.getGatheringMateList(gatherId);
-		String date = changeDateFormat(visitDate);
-
-		for (Map<String, Object> info : gatheringMateList) {
-			UserEntity user = (UserEntity)info.get("user");
-			GatheringEntity gathering = (GatheringEntity)info.get("gathering");
-
-			if (Objects.equals(user.getUserId(), getUserId())) {
-				continue;
-			}
-			// if (user.getNewDateGatheringAlarm() && user.getAlarmToken() != null) {
-			// 	pushAlarm.sendMessageTo(FcmSendDto.builder().token(user.getAlarmToken())
-			// 		.title("\"" + gathering.getGatherName() + "\"" + "와 함께 보러 갈 새로운 일정 알림")
-			// 		.body(date + "에 전시회 관람 날짜가 추가됐어요. 일정을 확인하려면 눌러주세요.")
-			// 		.type("calendar")
-			// 		.build());
-			// }
-		}
+		// List<Map<String, Object>> gatheringMateList = gatheringMemberRepository.getGatheringMateList(gatherId);
+		// String date = changeDateFormat(visitDate);
+		//
+		// for (Map<String, Object> info : gatheringMateList) {
+		// 	UserEntity user = (UserEntity)info.get("user");
+		// 	GatheringEntity gathering = (GatheringEntity)info.get("gathering");
+		//
+		// 	if (Objects.equals(user.getUserId(), getUserId())) {
+		// 		continue;
+		// 	}
+		// 	// if (user.getNewDateGatheringAlarm() && user.getAlarmToken() != null) {
+		// 	// 	pushAlarm.sendMessageTo(FcmSendDto.builder().token(user.getAlarmToken())
+		// 	// 		.title("\"" + gathering.getGatherName() + "\"" + "와 함께 보러 갈 새로운 일정 알림")
+		// 	// 		.body(date + "에 전시회 관람 날짜가 추가됐어요. 일정을 확인하려면 눌러주세요.")
+		// 	// 		.type("calendar")
+		// 	// 		.build());
+		// 	// }
+		// }
 	}
 }

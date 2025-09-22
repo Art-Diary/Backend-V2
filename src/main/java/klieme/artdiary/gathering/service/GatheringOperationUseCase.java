@@ -1,6 +1,5 @@
 package klieme.artdiary.gathering.service;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -13,30 +12,18 @@ public interface GatheringOperationUseCase {
 
 	GatheringReadUseCase.FindGatheringResult createGathering(GatheringCreateCommand command);
 
-	List<GatheringReadUseCase.FindGatheringExhResult> addExhAboutGathering(ExhGatheringCreateCommand command) throws
-		IOException;
+	List<GatheringReadUseCase.FindGatheringMemberResult> addGatheringMate(GatheringMateCreateCommand command);
 
-	List<GatheringReadUseCase.FindGatheringMatesResult> addGatheringMate(GatheringMateCreateCommand command) throws
-		IOException;
+	void deleteMyGathering(Long gatheringId);
 
-	void deleteMyGathering(Long gatherId);
+	void addExhAboutGathering(ExhGatheringCreateCommand command);
 
 	@EqualsAndHashCode
 	@Builder
 	@Getter
 	@ToString
 	class GatheringCreateCommand {
-		private final String gatherName;
-	}
-
-	@EqualsAndHashCode
-	@Builder
-	@Getter
-	@ToString
-	class ExhGatheringCreateCommand {
-		private final Long gatherId;
-		private final Long exhId;
-		private final LocalDate visitDate;
+		private final String gatheringName;
 	}
 
 	@EqualsAndHashCode
@@ -44,7 +31,17 @@ public interface GatheringOperationUseCase {
 	@Getter
 	@ToString
 	class GatheringMateCreateCommand {
-		private final Long gatherId;
+		private final Long gatheringId;
 		private final Long userId;
+	}
+
+	@EqualsAndHashCode
+	@Builder
+	@Getter
+	@ToString
+	class ExhGatheringCreateCommand {
+		private final Long gatheringId;
+		private final Long exhId;
+		private final LocalDate visitDate;
 	}
 }

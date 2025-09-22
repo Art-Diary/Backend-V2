@@ -53,7 +53,7 @@ public class MateExhService implements MateExhReadUseCase {
 		if (!isMate) {
 			throw new ArtDiaryException(MessageType.NOT_FOUND);
 		}
-		List<Map<String, Object>> visitExhList = visitExhRepository.getVisitExhListWithExhInfo(mateId);
+		List<Map<String, Object>> visitExhList = visitExhRepository.getSoloVisitExhListWithExhInfo(mateId);
 		List<FindMateExhsResult> result = new ArrayList<>();
 
 		for (Map<String, Object> info : visitExhList) {
