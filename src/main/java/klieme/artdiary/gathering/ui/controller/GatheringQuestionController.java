@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,8 +34,6 @@ public class GatheringQuestionController {
 		this.gatheringQuestionOperationUseCase = gatheringQuestionOperationUseCase;
 		this.gatheringQuestionReadUseCase = gatheringQuestionReadUseCase;
 	}
-
-	// [TODO] create를 따로 만들어야 하나?
 
 	/**
 	 * 방문한 전시회의 대화를 위한 질문 목록 조회
@@ -61,6 +60,28 @@ public class GatheringQuestionController {
 			results.add(GatheringExhQuestionView.builder().result(diary).build());
 		}
 		return ResponseEntity.ok(results);
+	}
+
+	/**
+	 * 방문한 전시회의 한 주제에 대한 하나의 질문 생성
+	 */
+	@PostMapping("")
+	public ResponseEntity<Void> createGatheringExhQuestion(
+		@PathVariable(name = "gatheringId") Long gatheringId,
+		@PathVariable(name = "exhId") Long exhId,
+		@Valid @RequestBody UpdateGatheringQuestionRequest request
+	) {
+		log.info("[방문한 전시회의 한 주제에 대한 하나의 질문 생성]");
+		// request body 데이터 받아오기
+		var command = GatheringQuestionOperationUseCase.GatheringQuestionCreateCommand.builder()
+			.gatheringId(gatheringId)
+			.exhId(exhId)
+			.questionText(request.getQuestionText())
+			.build();
+		// 비즈니스 로직 호출
+		gatheringQuestionOperationUseCase.createGatheringExhQuestion(command);
+
+		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
 
 	/**
