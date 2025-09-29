@@ -10,7 +10,7 @@ import klieme.artdiary.gathering.data_access.entity.GatheringQuestionEntity;
 
 @Repository
 public interface GatheringQuestionRepository extends JpaRepository<GatheringQuestionEntity, Long> {
-	List<GatheringQuestionEntity> findByGatheringIdAndExhId(Long gatheringId, Long exhId);
+	List<GatheringQuestionEntity> findByGatheringIdAndExhIdOrderByGatheringQuestionIdDesc(Long gatheringId, Long exhId);
 
 	Optional<GatheringQuestionEntity> findByGatheringQuestionIdAndGatheringIdAndExhId(Long gatheringQuestionId,
 		Long gatheringId, Long exhId);

@@ -37,7 +37,7 @@ public class GatheringQuestionService implements GatheringQuestionOperationUseCa
 			throw new ArtDiaryException(MessageType.NOT_FOUND);
 		}
 		// 질문 리스트 가져오기 (gatheringId, exhId) 사용해서 가져오기 ,questionId 순으로 정렬
-		List<GatheringQuestionEntity> gatheringQuestionList = gatheringQuestionRepository.findByGatheringIdAndExhId(
+		List<GatheringQuestionEntity> gatheringQuestionList = gatheringQuestionRepository.findByGatheringIdAndExhIdOrderByGatheringQuestionIdDesc(
 			query.getGatheringId(), query.getExhId());
 		List<FindGatheringQuestionResult> results = new ArrayList<>();
 
@@ -45,6 +45,21 @@ public class GatheringQuestionService implements GatheringQuestionOperationUseCa
 			results.add(FindGatheringQuestionResult.of(question));
 		}
 		return results;
+	}
+
+	@Transactional
+	@Override
+	public void createGatheringExhQuestion(GatheringQuestionCreateCommand command) {
+		// 모임에 있는지 확인
+		if (!isUserInGathering(command.getGatheringId())) {
+			throw new ArtDiaryException(MessageType.NOT_FOUND);
+		}
+		GatheringQuestionEntity gatheringQuestion = GatheringQuestionEntity.builder()
+			.gatheringId(command.getGatheringId())
+			.exhId(command.getExhId())
+			.questionText(command.getQuestionText())
+			.build();
+		gatheringQuestionRepository.save(gatheringQuestion);
 	}
 
 	@Transactional

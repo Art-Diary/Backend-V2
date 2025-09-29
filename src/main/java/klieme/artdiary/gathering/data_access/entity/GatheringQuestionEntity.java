@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -30,6 +31,14 @@ public class GatheringQuestionEntity {
 	private Long exhId;
 	@Column(name = "question_text", nullable = false)
 	private String questionText;
+
+	@Builder
+	public GatheringQuestionEntity(Long gatheringQuestionId, Long gatheringId, Long exhId, String questionText) {
+		this.gatheringQuestionId = gatheringQuestionId;
+		this.gatheringId = gatheringId;
+		this.exhId = exhId;
+		this.questionText = questionText;
+	}
 
 	public void updateQuestionText(String questionText) {
 		this.questionText = questionText;

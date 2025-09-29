@@ -6,7 +6,19 @@ import lombok.Getter;
 import lombok.ToString;
 
 public interface GatheringQuestionOperationUseCase {
+	void createGatheringExhQuestion(GatheringQuestionCreateCommand command);
+
 	void updateGatheringExhQuestion(GatheringQuestionUpdateCommand command);
+
+	@EqualsAndHashCode
+	@Builder
+	@Getter
+	@ToString
+	class GatheringQuestionCreateCommand {
+		private final Long gatheringId;
+		private final Long exhId;
+		private final String questionText;
+	}
 
 	@EqualsAndHashCode
 	@Builder
