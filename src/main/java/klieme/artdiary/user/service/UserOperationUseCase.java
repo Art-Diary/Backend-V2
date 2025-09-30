@@ -13,7 +13,7 @@ public interface UserOperationUseCase {
 
 	UserReadUseCase.FindUserResult updateUser(UserUpdateCommand command);
 
-	UserReadUseCase.FindAlarmResult updateAlarm(UserAlarmUpdateCommand command);
+	void updateAlarm(UserAlarmUpdateCommand command);
 
 	void deleteUser(DeleteReasonCommand command);
 
@@ -47,11 +47,8 @@ public interface UserOperationUseCase {
 	@ToString
 	@Builder
 	class UserAlarmUpdateCommand {
-		private final Boolean favoriteExhAlarm;
-		private final Boolean visitSoloAlarm;
-		private final Boolean visitGatheringAlarm;
-		private final Boolean newGatheringAlarm;
-		private final Boolean newDateGatheringAlarm;
+		private final Long notiId;
+		private final Boolean setNoti;
 	}
 
 	@EqualsAndHashCode
