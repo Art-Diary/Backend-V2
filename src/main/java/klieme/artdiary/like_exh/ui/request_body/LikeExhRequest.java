@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class LikeExhRequest {
 	@NotNull
-	public Long exhId;
+	private Long exhId;
 }

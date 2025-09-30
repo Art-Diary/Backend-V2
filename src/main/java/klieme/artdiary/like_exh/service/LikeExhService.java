@@ -61,6 +61,21 @@ public class LikeExhService implements LikeExhOperationUseCase, LikeExhReadUseCa
 		likeExhRepository.delete(savedFavoriteExh);
 	}
 
+	@Transactional
+	@Override
+	public void deleteLikeExhList(List<LikeExhCommand> commandList) {
+		Long userId = getUserId();
+
+		for (LikeExhCommand command : commandList) {
+			Optional<LikeExhEntity> deleteEntity = likeExhRepository.findByLikeExhId(LikeExhId.builder()
+				.userId(userId)
+				.exhId(command.getExhId())
+				.build());
+
+			deleteEntity.ifPresent(likeExhRepository::delete);
+		}
+	}
+
 	@Override
 	public List<FindLikeExhResult> getLikeExhs() {
 
@@ -73,22 +88,6 @@ public class LikeExhService implements LikeExhOperationUseCase, LikeExhReadUseCa
 		}
 		return favorites;
 	}
-
-	// @Override
-	// @Transactional
-	// public void deleteLikeExh(List<LikeExhCommand> commands) {
-	//
-	// 	for (LikeExhCommand command : commands) {
-	//
-	// 		LikeExhId likeExhId = LikeExhId.builder()
-	// 			.userId(getUserId())
-	// 			.exhId(command.getExhId())
-	// 			.build();
-	// 		LikeExhEntity fEntity = likeExhRepository.findByLikeExhId(likeExhId)
-	// 			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-	// 		likeExhRepository.delete(fEntity);
-	// 	}
-	// }
 
 	private Long getUserId() {
 		return getCurrentUserEntity().getUserId();

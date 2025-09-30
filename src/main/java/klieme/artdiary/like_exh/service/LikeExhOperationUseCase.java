@@ -1,5 +1,7 @@
 package klieme.artdiary.like_exh.service;
 
+import java.util.List;
+
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -10,7 +12,7 @@ public interface LikeExhOperationUseCase {
 
 	void deleteLikeExh(LikeExhCommand command);
 
-	// void deleteLikeExh(List<LikeExhCommand> commands);
+	void deleteLikeExhList(List<LikeExhCommand> command);
 
 	@EqualsAndHashCode
 	@Builder

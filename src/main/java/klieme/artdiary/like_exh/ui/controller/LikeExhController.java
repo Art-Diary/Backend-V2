@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import klieme.artdiary.like_exh.service.LikeExhOperationUseCase;
 import klieme.artdiary.like_exh.service.LikeExhReadUseCase;
 import klieme.artdiary.like_exh.ui.request_body.LikeExhRequest;
@@ -79,21 +80,21 @@ public class LikeExhController {
 		likeExhOperationUseCase.deleteLikeExh(command);
 	}
 
-	// @PostMapping("/unlike")
-	// public void deleteLikeExh(@Valid @RequestBody @NotEmpty List<LikeExhRequest> request) {
-	// 	log.info("[전시회 좋아요 해제 클릭]");
-	//
-	// 	List<LikeExhOperationUseCase.LikeExhCommand> commands = new ArrayList<>();
-	// 	// List<Long> requests = deleterequests.getFavoriteExhsList();
-	// 	//
-	// 	// //List<FavoriteExhRequest> requests=deleterequests.getFavoriteExhsList();
-	// 	// for (Long request : requests) {
-	// 	// 	var command = LikeExhOperationUseCase.LikeExhCreateCommand.builder()
-	// 	// 		.exhId(request)
-	// 	// 		.build();
-	// 	// 	commands.add(command);
-	// 	// }
-	// 	//
-	// 	// likeExhOperationUseCase.deleteLikeExh(commands);
-	// }
+	@PostMapping("/unlike")
+	public ResponseEntity<Void> deleteLikeExhList(@Valid @RequestBody @NotEmpty List<LikeExhRequest> requests) {
+		log.info("[전시회 좋아요 해제 클릭]");
+
+		List<LikeExhOperationUseCase.LikeExhCommand> commands = new ArrayList<>();
+
+		for (LikeExhRequest request : requests) {
+			var command = LikeExhOperationUseCase.LikeExhCommand.builder()
+				.exhId(request.getExhId())
+				.build();
+			commands.add(command);
+		}
+
+		likeExhOperationUseCase.deleteLikeExhList(commands);
+
+		return ResponseEntity.status(HttpStatus.CREATED).build();
+	}
 }
