@@ -8,7 +8,7 @@ import lombok.ToString;
 @Getter
 @ToString
 @NoArgsConstructor
-public class UserAlarmRequest {
+public class UserNotiRequest {
 	@NotNull
-	private Boolean alarm;
+	private Boolean setNoti;
 }

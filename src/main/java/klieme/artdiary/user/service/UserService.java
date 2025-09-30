@@ -2,7 +2,9 @@ package klieme.artdiary.user.service;
 
 import static klieme.artdiary.common.SecurityUtil.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -22,13 +24,18 @@ import klieme.artdiary.record_data_access.entity.DiaryEntity;
 import klieme.artdiary.record_data_access.entity.ExhVisitEntity;
 import klieme.artdiary.record_data_access.repository.DiaryRepository;
 import klieme.artdiary.record_data_access.repository.ExhVisitRepository;
+import klieme.artdiary.user.data_access.entity.NotificationTypeEntity;
 import klieme.artdiary.user.data_access.entity.ReasonEntity;
 import klieme.artdiary.user.data_access.entity.SocialLoginEntity;
 import klieme.artdiary.user.data_access.entity.SocialLoginId;
 import klieme.artdiary.user.data_access.entity.UserEntity;
+import klieme.artdiary.user.data_access.entity.UserNotificationSettingEntity;
+import klieme.artdiary.user.data_access.entity.UserNotificationSettingId;
 import klieme.artdiary.user.data_access.repository.ReasonRepository;
 import klieme.artdiary.user.data_access.repository.SocialLoginRepository;
+import klieme.artdiary.user.data_access.repository.UserNotificationSettingRepository;
 import klieme.artdiary.user.data_access.repository.UserRepository;
+import klieme.artdiary.user.dto.NotiInfo;
 import klieme.artdiary.user.enums.RoleType;
 
 @Service
@@ -42,11 +49,13 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 	private final RegExhRepository regExhRepository;
 	private final JwtUtil jwtUtil;
 	private final S3ImageTransfer s3ImageTransfer;
+	private final UserNotificationSettingRepository userNotificationSettingRepository;
 
 	@Autowired
 	public UserService(UserRepository userRepository, ExhVisitRepository exhVisitRepository,
 		DiaryRepository diaryRepository, ReasonRepository reasonRepository, SocialLoginRepository socialLoginRepository,
-		RegExhRepository regExhRepository, JwtUtil jwtUtil, S3ImageTransfer s3ImageTransfer) {
+		RegExhRepository regExhRepository, JwtUtil jwtUtil, S3ImageTransfer s3ImageTransfer,
+		UserNotificationSettingRepository userNotificationSettingRepository) {
 		this.userRepository = userRepository;
 		this.exhVisitRepository = exhVisitRepository;
 		this.diaryRepository = diaryRepository;
@@ -55,6 +64,7 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 		this.regExhRepository = regExhRepository;
 		this.jwtUtil = jwtUtil;
 		this.s3ImageTransfer = s3ImageTransfer;
+		this.userNotificationSettingRepository = userNotificationSettingRepository;
 	}
 
 	@Override
@@ -66,31 +76,44 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 
 	@Override
 	public String verifyNickname(VerifyNicknameQuery command) {
+		Optional<UserEntity> user = userRepository.findByNickname(command.getNickname());
 
-		//기존 닉네임 가져오기 => contain 사용해서 바로 닉네임 찾는 쿼리 사용해도 될 것 같음. (by 채린)
-		List<UserEntity> userNicknameList = userRepository.findAll();
-
-		//닉네임 한글만!
-		//닉네임 확인 & 있는 경우 에러 발생.
-		for (UserEntity user : userNicknameList) {
-			if (Objects.equals(command.getNickname(), user.getNickname())) {
-				throw (new ArtDiaryException(MessageType.CONFLICT));
-			}
+		if (user.isPresent()) {
+			throw new ArtDiaryException(MessageType.CONFLICT);
 		}
-		//없으면 저장하기?
-
 		return command.getNickname();
 	}
 
 	@Transactional
 	@Override
 	public FindUserResult loginTester(Long userId) {
-		UserEntity userEntity = userRepository.findByUserId(userId)
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		// noti
+		List<NotiInfo> notiList = new ArrayList<>();
+		List<Map<String, Object>> infoList = userNotificationSettingRepository.getUserNotificationSettingList(userId);
+		UserEntity userEntity = null;
+
+		for (Map<String, Object> info : infoList) {
+			UserEntity user = (UserEntity)info.get("user");
+			NotificationTypeEntity notificationType = (NotificationTypeEntity)info.get("notificationType");
+			UserNotificationSettingEntity userNotificationSetting = (UserNotificationSettingEntity)info.get(
+				"userNotificationSetting");
+
+			if (userEntity == null) {
+				userEntity = user;
+			}
+			notiList.add(NotiInfo.builder()
+				.notiId(notificationType.getNotiId())
+				.notiCode(notificationType.getCode())
+				.notiName(notificationType.getName())
+				.notiSubText(notificationType.getSubText())
+				.notiState(userNotificationSetting.getState())
+				.build());
+		}
+		assert userEntity != null;
 		TokenInfo tokenInfo = jwtUtil.generateToken(userEntity.getUserId(), null);
 
 		userEntity.updateRefreshToken(tokenInfo.getRefreshToken());
-		return FindUserResult.findUserLoginInfo(userEntity, true, tokenInfo.getAccessToken());
+		return FindUserResult.findUserLoginInfo(userEntity, true, tokenInfo.getAccessToken(), notiList);
 	}
 
 	@Transactional
@@ -124,7 +147,7 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 		Boolean finishInit = !Objects.equals(userEntity.getNickname(),
 			command.getProviderType() + "_" + command.getProviderId());
 
-		return FindUserResult.findUserLoginInfo(userEntity, finishInit, tokenInfo.getAccessToken());
+		return FindUserResult.findUserLoginInfo(userEntity, finishInit, tokenInfo.getAccessToken(), null);
 	}
 
 	private UserEntity initLogin(Boolean forCheckEmail, Boolean wantUnite, UserCreateCommand command) {
@@ -178,7 +201,7 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 		savedEntity.updateUser(UserEntity.builder()
 			.nickname(command.getNickname())
 			.profile(uploadImageUrl)
-			.favoriteArt(command.getFavoriteArt())
+			.artField(command.getFavoriteArt())
 			.build());
 		userRepository.save(savedEntity);
 		return FindUserResult.findUserInfo(savedEntity);
@@ -186,47 +209,16 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 
 	@Override
 	@Transactional
-	public FindAlarmResult updateAlarm(UserAlarmUpdateCommand command) {
-		UserEntity user = userRepository.findByUserId(getUserId())
-			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
-		Boolean alarm = false;
+	public void updateAlarm(UserAlarmUpdateCommand command) {
+		Long userId = getUserId();
+		UserNotificationSettingEntity notificationSetting = userNotificationSettingRepository.findByUserNotificationSettingId(
+			UserNotificationSettingId.builder()
+				.userId(userId)
+				.notiId(command.getNotiId())
+				.build()).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
-		if (command.getFavoriteExhAlarm() != null) {
-			if (user.getFavoriteExhAlarm().equals(command.getFavoriteExhAlarm())) {
-				throw new ArtDiaryException(MessageType.CONFLICT);
-			}
-			user.updateUser(UserEntity.builder().favoriteExhAlarm(command.getFavoriteExhAlarm()).build());
-			alarm = command.getFavoriteExhAlarm();
-		}
-		if (command.getVisitSoloAlarm() != null) {
-			if (user.getVisitSoloAlarm().equals(command.getVisitSoloAlarm())) {
-				throw new ArtDiaryException(MessageType.CONFLICT);
-			}
-			user.updateUser(UserEntity.builder().visitSoloAlarm(command.getVisitSoloAlarm()).build());
-			alarm = command.getVisitSoloAlarm();
-		}
-		if (command.getVisitGatheringAlarm() != null) {
-			if (user.getVisitGatheringAlarm().equals(command.getVisitGatheringAlarm())) {
-				throw new ArtDiaryException(MessageType.CONFLICT);
-			}
-			user.updateUser(UserEntity.builder().visitGatheringAlarm(command.getVisitGatheringAlarm()).build());
-			alarm = command.getVisitGatheringAlarm();
-		}
-		if (command.getNewGatheringAlarm() != null) {
-			if (user.getNewGatheringAlarm().equals(command.getNewGatheringAlarm())) {
-				throw new ArtDiaryException(MessageType.CONFLICT);
-			}
-			user.updateUser(UserEntity.builder().newGatheringAlarm(command.getNewGatheringAlarm()).build());
-			alarm = command.getNewGatheringAlarm();
-		}
-		if (command.getNewDateGatheringAlarm() != null) {
-			if (user.getNewDateGatheringAlarm().equals(command.getNewDateGatheringAlarm())) {
-				throw new ArtDiaryException(MessageType.CONFLICT);
-			}
-			user.updateUser(UserEntity.builder().newDateGatheringAlarm(command.getNewDateGatheringAlarm()).build());
-			alarm = command.getNewDateGatheringAlarm();
-		}
-		return FindAlarmResult.findAlarm(alarm);
+		notificationSetting.updateState(command.getSetNoti());
+		userNotificationSettingRepository.save(notificationSetting);
 	}
 
 	@Override
@@ -296,17 +288,18 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 			.email(command.getEmail())
 			.nickname(command.getProviderType() + "_" + command.getProviderId())
 			.profile(null)
-			.favoriteArt(null)
-			.favoriteExhAlarm(true)
-			.visitSoloAlarm(true)
-			.visitGatheringAlarm(true)
-			.newGatheringAlarm(true)
-			.newDateGatheringAlarm(true)
+			.artField(null)
+			// .favoriteExhAlarm(true)
+			// .visitSoloAlarm(true)
+			// .visitGatheringAlarm(true)
+			// .newGatheringAlarm(true)
+			// .newDateGatheringAlarm(true)
 			.alarmToken(command.getAlarmToken())
 			.providerType(command.getProviderType())
 			.roleType(RoleType.USER.label())
 			.build();
 		userRepository.save(newUser);
+		// [TODO] user notification setting 넣기
 		return newUser;
 	}
 

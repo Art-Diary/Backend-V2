@@ -1,13 +1,16 @@
 package klieme.artdiary.user.ui.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -17,12 +20,10 @@ import klieme.artdiary.user.ui.request_body.AlarmTokenRequest;
 import klieme.artdiary.user.ui.request_body.DeleteReasonRequest;
 import klieme.artdiary.user.ui.request_body.TesterRequest;
 import klieme.artdiary.user.ui.request_body.UpdateTokenRequest;
-import klieme.artdiary.user.ui.request_body.UserAlarmRequest;
-import klieme.artdiary.user.ui.request_body.UserNicknameRequest;
+import klieme.artdiary.user.ui.request_body.UserNotiRequest;
 import klieme.artdiary.user.ui.request_body.UserRequest;
 import klieme.artdiary.user.ui.request_body.UserUpdateRequest;
 import klieme.artdiary.user.ui.view.AccessTokenView;
-import klieme.artdiary.user.ui.view.UserAlarmView;
 import klieme.artdiary.user.ui.view.UserNicknameView;
 import klieme.artdiary.user.ui.view.UserView;
 import lombok.extern.slf4j.Slf4j;
@@ -49,12 +50,12 @@ public class UserController {
 		return ResponseEntity.ok(UserView.builder().result(result).build());
 	}
 
-	@PostMapping("/verify")
-	public ResponseEntity<UserNicknameView> verifyNickname(@Valid @RequestBody UserNicknameRequest request) {
+	@GetMapping("/verify")
+	public ResponseEntity<UserNicknameView> verifyNickname(@RequestParam(name = "nickname") String nickname) {
 		log.info("[닉네임 검사]");
 
 		var command = UserReadUseCase.VerifyNicknameQuery.builder()
-			.nickname(request.getNickname())
+			.nickname(nickname)
 			.build();
 
 		String result = userReadUseCase.verifyNickname(command);
@@ -69,6 +70,7 @@ public class UserController {
 	public ResponseEntity<UserView> loginUser(@Valid @RequestBody UserRequest userRequest) {
 		log.info("[사용자 로그인 (" + userRequest.getProviderType() + ")]");
 
+		// [TODO] 새로운 사용자일 경우 알림 데이터 새로 생성
 		var command = UserOperationUseCase.UserCreateCommand.builder()
 			.email(userRequest.getEmail())
 			.providerType(userRequest.getProviderType())
@@ -88,7 +90,7 @@ public class UserController {
 		log.info("[테스터 사용자 로그인 (" + userRequest.getUserId() + ")]");
 
 		UserReadUseCase.FindUserResult result = userOperationUseCase.loginTester(userRequest.getUserId());
-		return ResponseEntity.ok(UserView.builder().result(result).build());
+		return ResponseEntity.status(HttpStatus.CREATED).body(UserView.builder().result(result).build());
 	}
 
 	/**
@@ -177,77 +179,19 @@ public class UserController {
 	}
 
 	/**
-	 * 좋아요한 전시회 시작일/마감일 알림 설정 수정
-	 * "/users/favorite-exh-alarm"
+	 * 알림 상태 수정
+	 * "/notifications/{notiId}"
 	 */
-	@PatchMapping("/favorite-exh-alarm")
-	public ResponseEntity<UserAlarmView> updateFavoriteExhAlarm(@Valid @RequestBody UserAlarmRequest request) {
-		log.info("[좋아요한 전시회 시작일/마감일 알림 설정]");
+	@PatchMapping("/notifications/{notiId}")
+	public ResponseEntity<Void> updateNotiState(@PathVariable(name = "notiId") Long notiId,
+		@Valid @RequestBody UserNotiRequest request) {
+		log.info("[알림 상태 수정]");
 
 		var command = UserOperationUseCase.UserAlarmUpdateCommand.builder()
-			.favoriteExhAlarm(request.getAlarm())
+			.notiId(notiId)
+			.setNoti(request.getSetNoti())
 			.build();
-		UserReadUseCase.FindAlarmResult result = userOperationUseCase.updateAlarm(command);
-		return ResponseEntity.ok(UserAlarmView.builder().result(result).build());
-	}
-
-	/**
-	 * 혼자 가는 전시회 날짜 알림 설정 수정
-	 * "/users/visit-solo-alarm"
-	 */
-	@PatchMapping("/visit-solo-alarm")
-	public ResponseEntity<UserAlarmView> updateVisitSoloAlarm(@Valid @RequestBody UserAlarmRequest request) {
-		log.info("[혼자 가는 전시회 날짜 알림 설정]");
-
-		var command = UserOperationUseCase.UserAlarmUpdateCommand.builder()
-			.visitSoloAlarm(request.getAlarm())
-			.build();
-		UserReadUseCase.FindAlarmResult result = userOperationUseCase.updateAlarm(command);
-		return ResponseEntity.ok(UserAlarmView.builder().result(result).build());
-	}
-
-	/**
-	 * 모임에서 가는 전시회 날짜 알림 설정 수정
-	 * "/users/visit-gathering-alarm"
-	 */
-	@PatchMapping("/visit-gathering-alarm")
-	public ResponseEntity<UserAlarmView> updateVisitGatheringAlarm(@Valid @RequestBody UserAlarmRequest request) {
-		log.info("[모임에서 가는 전시회 날짜 알림 설정]");
-
-		var command = UserOperationUseCase.UserAlarmUpdateCommand.builder()
-			.visitGatheringAlarm(request.getAlarm())
-			.build();
-		UserReadUseCase.FindAlarmResult result = userOperationUseCase.updateAlarm(command);
-		return ResponseEntity.ok(UserAlarmView.builder().result(result).build());
-	}
-
-	/**
-	 * 새로운 모임 알림 설정 수정
-	 * "/users/new-gathering-alarm"
-	 */
-	@PatchMapping("/new-gathering-alarm")
-	public ResponseEntity<UserAlarmView> updateNewGatheringAlarm(@Valid @RequestBody UserAlarmRequest request) {
-		log.info("[새로운 모임 알림 설정]");
-
-		var command = UserOperationUseCase.UserAlarmUpdateCommand.builder()
-			.newGatheringAlarm(request.getAlarm())
-			.build();
-		UserReadUseCase.FindAlarmResult result = userOperationUseCase.updateAlarm(command);
-		return ResponseEntity.ok(UserAlarmView.builder().result(result).build());
-	}
-
-	/**
-	 * 새로운 모임 알림 설정 수정
-	 * "/users/new-date-gathering-alarm"
-	 */
-	@PatchMapping("/new-date-gathering-alarm")
-	public ResponseEntity<UserAlarmView> updateNewDateGatheringAlarm(@Valid @RequestBody UserAlarmRequest request) {
-		log.info("[새로운 모임 알림 설정]");
-
-		var command = UserOperationUseCase.UserAlarmUpdateCommand.builder()
-			.newDateGatheringAlarm(request.getAlarm())
-			.build();
-		UserReadUseCase.FindAlarmResult result = userOperationUseCase.updateAlarm(command);
-		return ResponseEntity.ok(UserAlarmView.builder().result(result).build());
+		userOperationUseCase.updateAlarm(command);
+		return ResponseEntity.status(HttpStatus.OK).build();
 	}
 }
