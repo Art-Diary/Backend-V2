@@ -13,4 +13,8 @@ public interface VisitExhRepoCustom {
 		LocalDate startDate, LocalDate endDate);
 
 	List<Map<String, Object>> getGatheringVisitExhListWithExhInfo(Long gatheringId);
+
+	List<Map<String, Object>> getVisitSoloDateForFcm(Long notiId);
+
+	List<Map<String, Object>> getVisitGatheringDateForFcm(Long notiId);
 }

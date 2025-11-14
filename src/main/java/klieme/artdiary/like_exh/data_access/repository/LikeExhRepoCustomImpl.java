@@ -12,6 +12,7 @@ import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.data_access.entity.QExhEntity;
 import klieme.artdiary.like_exh.data_access.entity.QLikeExhEntity;
 import klieme.artdiary.user.data_access.entity.QUserEntity;
+import klieme.artdiary.user.data_access.entity.QUserNotificationSettingEntity;
 import klieme.artdiary.user.data_access.entity.UserEntity;
 import lombok.RequiredArgsConstructor;
 
@@ -20,18 +21,25 @@ public class LikeExhRepoCustomImpl implements LikeExhRepoCustom {
 	private final JPAQueryFactory query;
 
 	@Override
-	public List<Map<String, Object>> getLikeExhWithUserAndExh() {
+	public List<Map<String, Object>> getLikeExhWithUserAndExh(Long notiId) {
 		QLikeExhEntity likeExh = QLikeExhEntity.likeExhEntity;
 		QUserEntity user = QUserEntity.userEntity;
 		QExhEntity exh = QExhEntity.exhEntity;
+		QUserNotificationSettingEntity userNotificationSetting = QUserNotificationSettingEntity.userNotificationSettingEntity;
 
 		List<Tuple> tuples = query
 			.select(user, exh)
 			.from(likeExh)
-			.leftJoin(user).on(likeExh.likeExhId.userId.eq(user.userId))
-			.leftJoin(exh).on(likeExh.likeExhId.exhId.eq(exh.exhId))
+			.leftJoin(user)
+			.on(likeExh.likeExhId.userId.eq(user.userId))
+			.leftJoin(userNotificationSetting)
+			.on(user.userId.eq(userNotificationSetting.userNotificationSettingId.userId))
+			.leftJoin(exh)
+			.on(likeExh.likeExhId.exhId.eq(exh.exhId))
 			.fetchJoin()
-			.where(user.alarmToken.isNotNull(), exh.exhId.isNotNull())//, user.favoriteExhAlarm.eq(true)
+			.where(user.alarmToken.isNotNull(), exh.exhId.isNotNull(),
+				userNotificationSetting.userNotificationSettingId.notiId.eq(notiId),
+				userNotificationSetting.state.eq(true))
 			.fetch();
 
 		List<Map<String, Object>> result = new ArrayList<>();
