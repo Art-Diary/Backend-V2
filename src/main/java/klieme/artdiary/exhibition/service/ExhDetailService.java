@@ -126,6 +126,9 @@ public class ExhDetailService implements ExhDetailReadUseCase, ExhDetailOperatio
 			QuestionEntity question = (QuestionEntity)item.get("question");
 			UserEntity user = (UserEntity)item.get("user");
 
+			if (user == null) {
+				user = UserEntity.builder().nickname("과거메이트").build();
+			}
 			results.add(FindSoloDiaryResult.findBySoloDiary(soloDiary, question, user));
 		}
 		return results;
