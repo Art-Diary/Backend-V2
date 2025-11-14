@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ import klieme.artdiary.user.data_access.entity.SocialLoginId;
 import klieme.artdiary.user.data_access.entity.UserEntity;
 import klieme.artdiary.user.data_access.entity.UserNotificationSettingEntity;
 import klieme.artdiary.user.data_access.entity.UserNotificationSettingId;
+import klieme.artdiary.user.data_access.repository.NotificationTypeRepository;
 import klieme.artdiary.user.data_access.repository.ReasonRepository;
 import klieme.artdiary.user.data_access.repository.SocialLoginRepository;
 import klieme.artdiary.user.data_access.repository.UserNotificationSettingRepository;
@@ -50,12 +52,14 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 	private final JwtUtil jwtUtil;
 	private final S3ImageTransfer s3ImageTransfer;
 	private final UserNotificationSettingRepository userNotificationSettingRepository;
+	private final NotificationTypeRepository notificationTypeRepository;
 
 	@Autowired
 	public UserService(UserRepository userRepository, ExhVisitRepository exhVisitRepository,
 		DiaryRepository diaryRepository, ReasonRepository reasonRepository, SocialLoginRepository socialLoginRepository,
 		RegExhRepository regExhRepository, JwtUtil jwtUtil, S3ImageTransfer s3ImageTransfer,
-		UserNotificationSettingRepository userNotificationSettingRepository) {
+		UserNotificationSettingRepository userNotificationSettingRepository,
+		NotificationTypeRepository notificationTypeRepository) {
 		this.userRepository = userRepository;
 		this.exhVisitRepository = exhVisitRepository;
 		this.diaryRepository = diaryRepository;
@@ -65,6 +69,7 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 		this.jwtUtil = jwtUtil;
 		this.s3ImageTransfer = s3ImageTransfer;
 		this.userNotificationSettingRepository = userNotificationSettingRepository;
+		this.notificationTypeRepository = notificationTypeRepository;
 	}
 
 	@Override
@@ -90,17 +95,14 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 		// noti
 		List<NotiInfo> notiList = new ArrayList<>();
 		List<Map<String, Object>> infoList = userNotificationSettingRepository.getUserNotificationSettingList(userId);
-		UserEntity userEntity = null;
+		UserEntity userEntity = userRepository.findByUserId(userId)
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 
 		for (Map<String, Object> info : infoList) {
-			UserEntity user = (UserEntity)info.get("user");
 			NotificationTypeEntity notificationType = (NotificationTypeEntity)info.get("notificationType");
 			UserNotificationSettingEntity userNotificationSetting = (UserNotificationSettingEntity)info.get(
 				"userNotificationSetting");
 
-			if (userEntity == null) {
-				userEntity = user;
-			}
 			notiList.add(NotiInfo.builder()
 				.notiId(notificationType.getNotiId())
 				.notiCode(notificationType.getCode())
@@ -109,7 +111,6 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 				.notiState(userNotificationSetting.getState())
 				.build());
 		}
-		assert userEntity != null;
 		TokenInfo tokenInfo = jwtUtil.generateToken(userEntity.getUserId(), null);
 
 		userEntity.updateRefreshToken(tokenInfo.getRefreshToken());
@@ -125,10 +126,12 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 				.providerType(command.getProviderType())
 				.providerUserId(command.getProviderId()).build());
 		UserEntity userEntity;
+		List<NotiInfo> notiList = new ArrayList<>();
 
 		if (socialLoginEntity.isPresent()) {
 			// re
 			// update provider type
+			// get noti info
 			userEntity = userRepository.findByUserId(socialLoginEntity.get().getUserId())
 				.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 			userEntity.updateUser(UserEntity.builder()
@@ -136,10 +139,44 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 				.alarmToken(command.getAlarmToken())
 				.build());
 			userRepository.save(userEntity);
+			List<Map<String, Object>> infoList = userNotificationSettingRepository.getUserNotificationSettingList(
+				userEntity.getUserId());
+
+			for (Map<String, Object> info : infoList) {
+				NotificationTypeEntity notificationType = (NotificationTypeEntity)info.get("notificationType");
+				UserNotificationSettingEntity userNotificationSetting = (UserNotificationSettingEntity)info.get(
+					"userNotificationSetting");
+
+				notiList.add(NotiInfo.builder()
+					.notiId(notificationType.getNotiId())
+					.notiCode(notificationType.getCode())
+					.notiName(notificationType.getName())
+					.notiSubText(notificationType.getSubText())
+					.notiState(userNotificationSetting.getState())
+					.build());
+			}
 		} else {
 			// init
+			// insert noti info
 			userEntity = initLogin(forCheckEmail, wantUnite, command);
 			insertSocialLogin(command, userEntity);
+			List<NotificationTypeEntity> typeEntityList = notificationTypeRepository.findAll();
+
+			for (NotificationTypeEntity entity : typeEntityList) {
+				userNotificationSettingRepository.save(
+					UserNotificationSettingEntity.builder().userNotificationSettingId(
+						UserNotificationSettingId.builder()
+							.userId(userEntity.getUserId())
+							.notiId(entity.getNotiId())
+							.build()).state(true).build());
+				notiList.add(NotiInfo.builder()
+					.notiId(entity.getNotiId())
+					.notiCode(entity.getCode())
+					.notiName(entity.getName())
+					.notiSubText(entity.getSubText())
+					.notiState(true)
+					.build());
+			}
 		}
 		TokenInfo tokenInfo = jwtUtil.generateToken(userEntity.getUserId(), null);
 		userEntity.updateRefreshToken(tokenInfo.getRefreshToken());
@@ -147,7 +184,7 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 		Boolean finishInit = !Objects.equals(userEntity.getNickname(),
 			command.getProviderType() + "_" + command.getProviderId());
 
-		return FindUserResult.findUserLoginInfo(userEntity, finishInit, tokenInfo.getAccessToken(), null);
+		return FindUserResult.findUserLoginInfo(userEntity, finishInit, tokenInfo.getAccessToken(), notiList);
 	}
 
 	private UserEntity initLogin(Boolean forCheckEmail, Boolean wantUnite, UserCreateCommand command) {
@@ -284,22 +321,30 @@ public class UserService implements UserOperationUseCase, UserReadUseCase {
 	}
 
 	private UserEntity insertUser(UserCreateCommand command) {
+		// 닉네임 랜덤 생성
+		String nickname = "오리";
+
+		while (true) {
+			// 	랜덤 숫자 생성
+			Random random = new Random();
+			int randomNumber = 100 + random.nextInt(900); // 100 ~ 999
+			Optional<UserEntity> user = userRepository.findByNickname(nickname + randomNumber);
+
+			if (user.isEmpty()) {
+				nickname += randomNumber;
+				break;
+			}
+		}
 		UserEntity newUser = UserEntity.builder()
 			.email(command.getEmail())
-			.nickname(command.getProviderType() + "_" + command.getProviderId())
+			.nickname(nickname)
 			.profile(null)
 			.artField(null)
-			// .favoriteExhAlarm(true)
-			// .visitSoloAlarm(true)
-			// .visitGatheringAlarm(true)
-			// .newGatheringAlarm(true)
-			// .newDateGatheringAlarm(true)
 			.alarmToken(command.getAlarmToken())
 			.providerType(command.getProviderType())
 			.roleType(RoleType.USER.label())
 			.build();
 		userRepository.save(newUser);
-		// [TODO] user notification setting 넣기
 		return newUser;
 	}
 

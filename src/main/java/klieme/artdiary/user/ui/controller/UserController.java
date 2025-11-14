@@ -70,7 +70,6 @@ public class UserController {
 	public ResponseEntity<UserView> loginUser(@Valid @RequestBody UserRequest userRequest) {
 		log.info("[사용자 로그인 (" + userRequest.getProviderType() + ")]");
 
-		// [TODO] 새로운 사용자일 경우 알림 데이터 새로 생성
 		var command = UserOperationUseCase.UserCreateCommand.builder()
 			.email(userRequest.getEmail())
 			.providerType(userRequest.getProviderType())
