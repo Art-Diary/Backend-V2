@@ -60,4 +60,8 @@ public class SoloDiaryEntity {
 		this.writeDate = soloDiary.getWriteDate();
 		this.isPublic = soloDiary.getIsPublic();
 	}
+
+	public void updateUserIdNull() {
+		this.userId = null;
+	}
 }
