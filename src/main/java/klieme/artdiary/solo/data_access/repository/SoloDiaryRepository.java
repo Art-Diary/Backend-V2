@@ -1,5 +1,6 @@
 package klieme.artdiary.solo.data_access.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,4 +11,5 @@ import klieme.artdiary.solo.data_access.entity.SoloDiaryEntity;
 @Repository
 public interface SoloDiaryRepository extends JpaRepository<SoloDiaryEntity, Long>, SoloDiaryRepoCustom {
 	Optional<SoloDiaryEntity> findBySoloDiaryIdAndUserIdAndExhId(Long soloDiaryId, Long useId, Long exhId);
+	List<SoloDiaryEntity> findByUserId(Long useId);
 }

@@ -12,8 +12,10 @@ import klieme.artdiary.common.push_alarm.PushAlarm;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.like_exh.data_access.repository.LikeExhRepository;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
-import klieme.artdiary.record_data_access.repository.ExhVisitRepository;
+import klieme.artdiary.record_data_access.repository.VisitExhRepository;
+import klieme.artdiary.user.data_access.entity.NotificationTypeEntity;
 import klieme.artdiary.user.data_access.entity.UserEntity;
+import klieme.artdiary.user.data_access.repository.NotificationTypeRepository;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -21,26 +23,32 @@ import lombok.extern.slf4j.Slf4j;
 public class SendAlarmService {
 
 	private final LikeExhRepository likeExhRepository;
-	private final ExhVisitRepository exhVisitRepository;
+	private final VisitExhRepository visitExhRepository;
+	private final NotificationTypeRepository notificationTypeRepository;
 	private final PushAlarm pushAlarm;
 
 	@Autowired
-	public SendAlarmService(LikeExhRepository likeExhRepository, ExhVisitRepository exhVisitRepository,
-		PushAlarm pushAlarm) {
+	public SendAlarmService(LikeExhRepository likeExhRepository, VisitExhRepository visitExhRepository,
+		NotificationTypeRepository notificationTypeRepository, PushAlarm pushAlarm) {
 		this.likeExhRepository = likeExhRepository;
-		this.exhVisitRepository = exhVisitRepository;
+		this.visitExhRepository = visitExhRepository;
+		this.notificationTypeRepository = notificationTypeRepository;
 		this.pushAlarm = pushAlarm;
 	}
 
 	public void sendMessageAboutExh() {
 		log.info("[알림 보내기]");
 		List<FcmSendDto> fcmSendDtoList = new ArrayList<>();
+		// 알림 noti 정보 가져오기
+		List<NotificationTypeEntity> typeList = notificationTypeRepository.findAll();
 		// 좋아요한 전시회 시작일/마감일 알림
-		aboutFavorite(fcmSendDtoList);
+		aboutFavorite(fcmSendDtoList, typeList.getFirst().getNotiId());
 		// 혼자 가는 전시회 날짜 알림
-		aboutVisitSoloDate(fcmSendDtoList);
+		aboutVisitSoloDate(fcmSendDtoList, typeList.get(1).getNotiId());
 		// 모임에서 가는 전시회 날짜 알림
-		aboutVisitGatheringDate(fcmSendDtoList);
+		aboutVisitGatheringDate(fcmSendDtoList, typeList.get(2).getNotiId());
+		// TODO 새로운 모임 알림
+		// TODO 모임에서 추가된 전시회 알림
 		// push
 		for (FcmSendDto fcmSendDto : fcmSendDtoList) {
 			try {
@@ -52,12 +60,12 @@ public class SendAlarmService {
 		}
 	}
 
-	private void aboutFavorite(List<FcmSendDto> fcmSendDtoList) {
+	private void aboutFavorite(List<FcmSendDto> fcmSendDtoList, Long notiId) {
 		// 좋아요한 전시회 시작일/마감일 알림
-		List<Map<String, Object>> favoriteInfoList = likeExhRepository.getLikeExhWithUserAndExh();
+		List<Map<String, Object>> likeExhInfoList = likeExhRepository.getLikeExhWithUserAndExh(notiId);
 		LocalDate localDate = LocalDate.now();
 
-		for (Map<String, Object> info : favoriteInfoList) {
+		for (Map<String, Object> info : likeExhInfoList) {
 			UserEntity userEntity = (UserEntity)info.get("user");
 			ExhEntity exhEntity = (ExhEntity)info.get("exhibition");
 			String title = null;
@@ -82,9 +90,9 @@ public class SendAlarmService {
 		}
 	}
 
-	private void aboutVisitSoloDate(List<FcmSendDto> fcmSendDtoList) {
+	private void aboutVisitSoloDate(List<FcmSendDto> fcmSendDtoList, Long notiId) {
 		// 혼자 가는 전시회 날짜 알림
-		List<Map<String, Object>> visitInfoList = exhVisitRepository.getVisitSoloDateForFcm();
+		List<Map<String, Object>> visitInfoList = visitExhRepository.getVisitSoloDateForFcm(notiId);
 
 		for (Map<String, Object> visitInfo : visitInfoList) {
 			UserEntity user = (UserEntity)visitInfo.get("user");
@@ -100,9 +108,9 @@ public class SendAlarmService {
 		}
 	}
 
-	private void aboutVisitGatheringDate(List<FcmSendDto> fcmSendDtoList) {
+	private void aboutVisitGatheringDate(List<FcmSendDto> fcmSendDtoList, Long notiId) {
 		// 모임에서 가는 전시회 날짜 알림
-		List<Map<String, Object>> visitInfoList = exhVisitRepository.getVisitGatheringDateForFcm();
+		List<Map<String, Object>> visitInfoList = visitExhRepository.getVisitGatheringDateForFcm(notiId);
 
 		for (Map<String, Object> visitInfo : visitInfoList) {
 			UserEntity user = (UserEntity)visitInfo.get("user");
