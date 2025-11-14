@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping(value = "/evaluation")
+@RequestMapping(value = "/evaluations")
 public class EvaluationController {
 	private final EvaluationReadUseCase evaluationReadUseCase;
 
