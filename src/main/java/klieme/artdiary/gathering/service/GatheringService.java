@@ -3,7 +3,6 @@ package klieme.artdiary.gathering.service;
 import static klieme.artdiary.common.FormatDate.*;
 import static klieme.artdiary.common.SecurityUtil.*;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,6 +21,7 @@ import klieme.artdiary.common.api.MessageType;
 import klieme.artdiary.common.push_alarm.PushAlarm;
 import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.exhibition.data_access.repository.ExhRepository;
+import klieme.artdiary.fcm.FcmSendDto;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
 import klieme.artdiary.gathering.data_access.entity.GatheringExhPresenceEntity;
 import klieme.artdiary.gathering.data_access.entity.GatheringExhPresenceId;
@@ -36,7 +36,11 @@ import klieme.artdiary.gathering.info.VisitExhInfo;
 import klieme.artdiary.record_data_access.entity.VisitExhEntity;
 import klieme.artdiary.record_data_access.repository.VisitExhRepository;
 import klieme.artdiary.user.data_access.entity.UserEntity;
+import klieme.artdiary.user.data_access.entity.UserNotificationSettingEntity;
+import klieme.artdiary.user.data_access.entity.UserNotificationSettingId;
+import klieme.artdiary.user.data_access.repository.UserNotificationSettingRepository;
 import klieme.artdiary.user.data_access.repository.UserRepository;
+import klieme.artdiary.user.enums.NotiType;
 
 @Service
 public class GatheringService implements GatheringOperationUseCase, GatheringReadUseCase {
@@ -46,12 +50,14 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 	private final UserRepository userRepository;
 	private final VisitExhRepository visitExhRepository;
 	private final GatheringExhPresenceRepository gatheringExhPresenceRepository;
+	private final UserNotificationSettingRepository userNotificationSettingRepository;
 	private final PushAlarm pushAlarm;
 
 	@Autowired
 	public GatheringService(GatheringRepository gatheringRepository, PushAlarm pushAlarm,
 		GatheringMemberRepository gatheringMemberRepository, ExhRepository exhRepository, UserRepository userRepository,
-		VisitExhRepository visitExhRepository, GatheringExhPresenceRepository gatheringExhPresenceRepository) {
+		VisitExhRepository visitExhRepository, GatheringExhPresenceRepository gatheringExhPresenceRepository,
+		UserNotificationSettingRepository userNotificationSettingRepository) {
 		this.gatheringRepository = gatheringRepository;
 		this.gatheringMemberRepository = gatheringMemberRepository;
 		this.exhRepository = exhRepository;
@@ -59,6 +65,7 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 		this.pushAlarm = pushAlarm;
 		this.visitExhRepository = visitExhRepository;
 		this.gatheringExhPresenceRepository = gatheringExhPresenceRepository;
+		this.userNotificationSettingRepository = userNotificationSettingRepository;
 	}
 
 	@Transactional
@@ -131,7 +138,9 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 				.visitDate(changeDateFormat(visitDate))
 				.build());
 		}
-		return FindGatheringDetailInfoResult.findByGatheringDetailInfo(mateInfoList, exhibitionInfoList);
+		GatheringEntity gathering = gatheringRepository.findByGatheringId(gatheringId)
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+		return FindGatheringDetailInfoResult.findByGatheringDetailInfo(gathering, mateInfoList, exhibitionInfoList);
 	}
 
 	@Override
@@ -194,8 +203,10 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 		for (UserEntity info : gatheringMateList) {
 			results.add(FindGatheringMemberResult.findByGatheringMates(info));
 		}
+		GatheringEntity savedGathering = gatheringRepository.findByGatheringId(command.getGatheringId())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 		// 초대 받은 사용자에게 푸시 알림 보내기
-		// sendPushAlarmToInvitedUser(requestGatheringMate, savedGathering);
+		sendPushAlarmToInvitedUser(requestGatheringMate, savedGathering);
 		return results;
 	}
 
@@ -326,7 +337,10 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 		}
 		gatheringExhPresenceRepository.saveAll(gatheringExhPresenceList);
 		// 모임 멤버들에게 푸시 알림 보내기
-		// sendPushAlarmToGatheringMember(command.getGatherId(), command.getVisitDate());
+		GatheringEntity savedGathering = gatheringRepository.findByGatheringId(command.getGatheringId())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
+
+		sendPushAlarmToGatheringMember(savedGathering, command.getVisitDate());
 	}
 
 	private Long getUserId() {
@@ -337,38 +351,42 @@ public class GatheringService implements GatheringOperationUseCase, GatheringRea
 		return userRepository.findByUserId(userId).orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 	}
 
-	private void sendPushAlarmToInvitedUser(UserEntity invitedUser, GatheringEntity gathering) throws IOException {
+	private void sendPushAlarmToInvitedUser(UserEntity invitedUser, GatheringEntity gathering) {
+		UserNotificationSettingEntity userNoti = userNotificationSettingRepository.findByUserNotificationSettingId(
+				UserNotificationSettingId.builder()
+					.userId(invitedUser.getUserId())
+					.notiId(NotiType.NEW_GATHERING_NOTI.label())
+					.build())
+			.orElseThrow(() -> new ArtDiaryException(MessageType.NOT_FOUND));
 		// 초대받는 사람의 알림이 켜져있어야 하고, 알림 토큰이 있어야 한다.
-		// if (invitedUser.getNewGatheringAlarm() && invitedUser.getAlarmToken() != null) {
-		// 	pushAlarm.sendMessageTo(FcmSendDto.builder().token(invitedUser.getAlarmToken())
-		// 		.title("새로운 모임 초대 알림")
-		// 		.body("\"" + gathering.getGatherName() + "\"에서 초대했어요. 모임 정보를 보려면 눌러주세요!")
-		// 		.type("gathering")
-		// 		.gatherId(gathering.getGatherId())
-		// 		.build());
-		// }
+		if (userNoti.getState()) {
+			pushAlarm.sendMessageTo(FcmSendDto.builder().token(invitedUser.getAlarmToken())
+				.title("새로운 모임 초대 알림")
+				.body("\"" + gathering.getGatheringName() + "\"에서 초대했어요. 모임 정보를 보려면 눌러주세요!")
+				.type("gathering")
+				.gatherId(gathering.getGatheringId())
+				.build());
+		}
 	}
 
-	private void sendPushAlarmToGatheringMember(Long gatherId, LocalDate visitDate) throws
-		IOException {
+	private void sendPushAlarmToGatheringMember(GatheringEntity gathering, LocalDate visitDate) {
 		// 모임의 멤버들의 NewGatheringAlarm 푸시 알림이 켜져있어야 하고, 알림 토큰이 있어야 한다.
-		// List<Map<String, Object>> gatheringMateList = gatheringMemberRepository.getGatheringMateList(gatherId);
-		// String date = changeDateFormat(visitDate);
-		//
-		// for (Map<String, Object> info : gatheringMateList) {
-		// 	UserEntity user = (UserEntity)info.get("user");
-		// 	GatheringEntity gathering = (GatheringEntity)info.get("gathering");
-		//
-		// 	if (Objects.equals(user.getUserId(), getUserId())) {
-		// 		continue;
-		// 	}
-		// 	// if (user.getNewDateGatheringAlarm() && user.getAlarmToken() != null) {
-		// 	// 	pushAlarm.sendMessageTo(FcmSendDto.builder().token(user.getAlarmToken())
-		// 	// 		.title("\"" + gathering.getGatherName() + "\"" + "와 함께 보러 갈 새로운 일정 알림")
-		// 	// 		.body(date + "에 전시회 관람 날짜가 추가됐어요. 일정을 확인하려면 눌러주세요.")
-		// 	// 		.type("calendar")
-		// 	// 		.build());
-		// 	// }
-		// }
+		// 알림에 대한 state는 쿼리문 안에 있음
+		List<UserEntity> gatheringMateList = userNotificationSettingRepository.getPushAlarmGatheringMemberNotificationInfoList(
+			gathering.getGatheringId(), NotiType.INVITED_GATHERING_NOTI.label());
+		String date = changeDateFormat(visitDate);
+
+		for (UserEntity member : gatheringMateList) {
+			if (Objects.equals(member.getUserId(), getUserId())) {
+				continue;
+			}
+			if (member.getAlarmToken() != null) {
+				pushAlarm.sendMessageTo(FcmSendDto.builder().token(member.getAlarmToken())
+					.title("\"" + gathering.getGatheringName() + "\"" + "와 함께 보러 갈 새로운 일정 알림")
+					.body(date + "에 전시회 관람 날짜가 추가됐어요. 일정을 확인하려면 눌러주세요.")
+					.type("calendar")
+					.build());
+			}
+		}
 	}
 }

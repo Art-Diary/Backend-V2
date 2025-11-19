@@ -8,9 +8,12 @@ import java.util.Map;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
+import klieme.artdiary.gathering.data_access.entity.QGatheringMemberEntity;
 import klieme.artdiary.user.data_access.entity.NotificationTypeEntity;
 import klieme.artdiary.user.data_access.entity.QNotificationTypeEntity;
+import klieme.artdiary.user.data_access.entity.QUserEntity;
 import klieme.artdiary.user.data_access.entity.QUserNotificationSettingEntity;
+import klieme.artdiary.user.data_access.entity.UserEntity;
 import klieme.artdiary.user.data_access.entity.UserNotificationSettingEntity;
 import lombok.RequiredArgsConstructor;
 
@@ -40,5 +43,25 @@ public class UserNotificationSettingRepoCustomImpl implements UserNotificationSe
 			result.add(row);
 		}
 		return result;
+	}
+
+	@Override
+	public List<UserEntity> getPushAlarmGatheringMemberNotificationInfoList(Long gatheringId, Long notiId) {
+		QUserNotificationSettingEntity userNotificationSetting = QUserNotificationSettingEntity.userNotificationSettingEntity;
+		QUserEntity user = QUserEntity.userEntity;
+		QGatheringMemberEntity gatheringMember = QGatheringMemberEntity.gatheringMemberEntity;
+
+		return query
+			.select(user)
+			.from(gatheringMember)
+			.leftJoin(user)
+			.on(gatheringMember.gatheringMemberId.userId.eq(user.userId))
+			.leftJoin(userNotificationSetting)
+			.on(user.userId.eq(userNotificationSetting.userNotificationSettingId.userId))
+			.fetchJoin()
+			.where(gatheringMember.gatheringMemberId.gatheringId.eq(gatheringId),
+				userNotificationSetting.userNotificationSettingId.notiId.eq(notiId),
+				userNotificationSetting.state.eq(true))
+			.fetch();
 	}
 }

@@ -15,11 +15,15 @@ import lombok.ToString;
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GatheringDetailInfoView {
+	private final Long gatheringId;
+	private final String gatheringName;
 	private final List<MateInfo> mates;
 	private final List<ExhibitionInfo> exhibitions;
 
 	@Builder
 	public GatheringDetailInfoView(GatheringReadUseCase.FindGatheringDetailInfoResult result) {
+		this.gatheringId = result.getGatheringId();
+		this.gatheringName = result.getGatheringName();
 		this.mates = result.getMates();
 		this.exhibitions = result.getExhibitions();
 	}
