@@ -110,12 +110,17 @@ public interface GatheringReadUseCase {
 	@ToString
 	@Builder
 	class FindGatheringDetailInfoResult {
+		private final Long gatheringId;
+		private final String gatheringName;
 		private final List<MateInfo> mates;
 		private final List<ExhibitionInfo> exhibitions;
 
-		public static FindGatheringDetailInfoResult findByGatheringDetailInfo(List<MateInfo> mates,
+		public static FindGatheringDetailInfoResult findByGatheringDetailInfo(GatheringEntity gathering,
+			List<MateInfo> mates,
 			List<ExhibitionInfo> exhibitions) {
 			return FindGatheringDetailInfoResult.builder()
+				.gatheringId(gathering.getGatheringId())
+				.gatheringName(gathering.getGatheringName())
 				.mates(mates)
 				.exhibitions(exhibitions)
 				.build();

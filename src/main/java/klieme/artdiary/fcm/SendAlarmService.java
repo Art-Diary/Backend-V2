@@ -13,9 +13,8 @@ import klieme.artdiary.exhibition.data_access.entity.ExhEntity;
 import klieme.artdiary.like_exh.data_access.repository.LikeExhRepository;
 import klieme.artdiary.gathering.data_access.entity.GatheringEntity;
 import klieme.artdiary.record_data_access.repository.VisitExhRepository;
-import klieme.artdiary.user.data_access.entity.NotificationTypeEntity;
 import klieme.artdiary.user.data_access.entity.UserEntity;
-import klieme.artdiary.user.data_access.repository.NotificationTypeRepository;
+import klieme.artdiary.user.enums.NotiType;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -24,31 +23,25 @@ public class SendAlarmService {
 
 	private final LikeExhRepository likeExhRepository;
 	private final VisitExhRepository visitExhRepository;
-	private final NotificationTypeRepository notificationTypeRepository;
 	private final PushAlarm pushAlarm;
 
 	@Autowired
 	public SendAlarmService(LikeExhRepository likeExhRepository, VisitExhRepository visitExhRepository,
-		NotificationTypeRepository notificationTypeRepository, PushAlarm pushAlarm) {
+		PushAlarm pushAlarm) {
 		this.likeExhRepository = likeExhRepository;
 		this.visitExhRepository = visitExhRepository;
-		this.notificationTypeRepository = notificationTypeRepository;
 		this.pushAlarm = pushAlarm;
 	}
 
 	public void sendMessageAboutExh() {
 		log.info("[알림 보내기]");
 		List<FcmSendDto> fcmSendDtoList = new ArrayList<>();
-		// 알림 noti 정보 가져오기
-		List<NotificationTypeEntity> typeList = notificationTypeRepository.findAll();
 		// 좋아요한 전시회 시작일/마감일 알림
-		aboutFavorite(fcmSendDtoList, typeList.getFirst().getNotiId());
+		aboutFavorite(fcmSendDtoList, NotiType.LIKE_EXH_NOTI.label());
 		// 혼자 가는 전시회 날짜 알림
-		aboutVisitSoloDate(fcmSendDtoList, typeList.get(1).getNotiId());
+		aboutVisitSoloDate(fcmSendDtoList, NotiType.SOLO_VISIT_NOTI.label());
 		// 모임에서 가는 전시회 날짜 알림
-		aboutVisitGatheringDate(fcmSendDtoList, typeList.get(2).getNotiId());
-		// TODO 새로운 모임 알림
-		// TODO 모임에서 추가된 전시회 알림
+		aboutVisitGatheringDate(fcmSendDtoList, NotiType.GATHERING_VISIT_NOTI.label());
 		// push
 		for (FcmSendDto fcmSendDto : fcmSendDtoList) {
 			try {
